@@ -44,3 +44,18 @@ func CondPipe[T any, U any](r T, err error, f func(T) (U, error)) (U, error) {
 	}
 	return f(r)
 }
+
+// CondFunc returns the result of the given function if err is nil, otherwise the error.
+func CondFunc[T any](err error, fn func() (T, error)) (T, error) {
+	if err != nil {
+		return empty[T](), err
+	}
+	return fn()
+}
+
+// CondProc calls the given procedure] if err is nil.
+func CondProc(err error, pr func()) {
+	if err == nil {
+		pr()
+	}
+}
