@@ -37,6 +37,11 @@ func BindErr[T any](err error, fn func() (T, error)) (T, error) {
 
 // ----------------------------------------------------------------
 
+// Err is an alias of Error.
+func Err[T any](err error) (T, error) {
+	return empty[T](), err
+}
+
 // Bind0 is an alias of Then.
 func Bind0(err error, fn func()) {
 	if err != nil {
