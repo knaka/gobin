@@ -59,6 +59,7 @@ func Let2[T any, U any](err error, fn func() (T, U)) (T, U) {
 	return fn()
 }
 
+// Bind0 is an alias of Then.
 func Bind0(err error, fn func() error) error {
 	if err != nil {
 		return err
