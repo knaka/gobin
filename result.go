@@ -7,8 +7,8 @@ func Ok[T any](value T) (T, error) {
 
 func empty[T any]() (t T) { return }
 
-// Error returns a zero value and the given error.
-func Error[T any](err error) (T, error) {
+// Err returns a zero value and the given error.
+func Err[T any](err error) (T, error) {
 	return empty[T](), err
 }
 
