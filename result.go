@@ -7,8 +7,8 @@ func Ok[T any](value T) (T, error) {
 
 func empty[T any]() (t T) { return }
 
-// Err returns a zero value and the given error.
-func Err[T any](err error) (T, error) {
+// Error returns a zero value and the given error.
+func Error[T any](err error) (T, error) {
 	return empty[T](), err
 }
 
@@ -36,6 +36,11 @@ func BindErr[T any](err error, fn func() (T, error)) (T, error) {
 }
 
 // ----------------------------------------------------------------
+
+// Err is an alias of Error.
+func Err[T any](err error) (T, error) {
+	return empty[T](), err
+}
 
 // Bind0 is an alias of Then.
 func Bind0(err error, fn func()) {
