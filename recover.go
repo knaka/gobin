@@ -1,4 +1,4 @@
-package internal
+package utils
 
 func RecoverError(errRef *error) {
 	if r := recover(); r != nil {

@@ -1,4 +1,4 @@
-package internal
+package utils
 
 // Ensure checks if the value is available. If err is not nil, it panics.
 //

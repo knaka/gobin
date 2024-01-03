@@ -1,4 +1,4 @@
-package internal
+package utils
 
 // Contains checks if “target” is in “items”.
 func Contains[T comparable](items []T, target T) bool {
