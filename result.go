@@ -5,48 +5,79 @@ func Ok[T any](value T) (T, error) {
 	return value, nil
 }
 
-func Empty[T any]() (t T) { return }
+func empty[T any]() (t T) { return }
 
-// Err returns a zero value and the given error.
-func Err[T any](err error) (T, error) {
-	return Empty[T](), err
+// Error returns a zero value and the given error.
+func Error[T any](err error) (T, error) {
+	return empty[T](), err
 }
 
-// SafePipeErr returns the result of the given function that can fail if err is nil, otherwise the error.
-func SafePipeErr[T any, U any](r T, err error, f func(T) (U, error)) (U, error) {
-	if err != nil {
-		return Empty[U](), err
+// Then calls the given procedure if err is nil.
+func Then(err error, fn func()) {
+	if err == nil {
+		fn()
 	}
-	return f(r)
 }
 
-// SafePipe returns the result of the given function if err is nil, otherwise the error.
-func SafePipe[T any, U any](r T, err error, f func(T) U) (U, error) {
+// Bind returns the result of the given function if err is nil, otherwise the error.
+func Bind[T any](err error, fn func() T) T {
 	if err != nil {
-		return Empty[U](), err
-	}
-	return f(r), nil
-}
-
-// SafeCallErr returns the result of the given function that can fail if err is nil, otherwise the error.
-func SafeCallErr[T any](err error, fn func() (T, error)) (T, error) {
-	if err != nil {
-		return Empty[T](), err
+		return empty[T]()
 	}
 	return fn()
 }
 
-// SafeCall returns the result of the given function if err is nil, otherwise the error.
-func SafeCall[T any](err error, fn func() T) (T, error) {
+// BindErr returns the result of the given function that can fail if err is nil, otherwise the error.
+func BindErr[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return Empty[T](), err
+		return empty[T](), err
 	}
-	return fn(), nil
+	return fn()
 }
 
-// SafeCall0 calls the given procedure if err is nil.
-func SafeCall0(err error, pr func()) {
-	if err == nil {
-		pr()
+// ----------------------------------------------------------------
+
+// Bind0 is an alias of Then.
+func Bind0(err error, fn func()) {
+	if err != nil {
+		return
 	}
+	fn()
+}
+
+// Bind1 is an alias of Bind.
+func Bind1[T any](err error, fn func() T) T {
+	if err != nil {
+		return empty[T]()
+	}
+	return fn()
+}
+
+func Bind2[T any, U any](err error, fn func() (T, U)) (T, U) {
+	if err != nil {
+		return empty[T](), empty[U]()
+	}
+	return fn()
+}
+
+func BindErr0(err error, fn func() error) error {
+	if err != nil {
+		return err
+	}
+	return fn()
+}
+
+// BindErr1 is an alias of BindErr.
+func BindErr1[T any](err error, fn func() (T, error)) (T, error) {
+	if err != nil {
+		return empty[T](), err
+	}
+	return fn()
+}
+
+func BindErr2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
+	if err != nil {
+		return empty[T](), empty[U](), err
+	}
+	return fn()
 }
