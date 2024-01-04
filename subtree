@@ -7,31 +7,34 @@ then
   echo "This directory is not a subtree."
   exit 1
 fi
+
+show_help() {
+  echo "Usage: $0 <push|pull>"
+  exit 1
+}
+
 base="$(basename "$0")"
-action=
 case "$base" in
-  push-subtree) action=push ;;
-  pull-subtree) action=pull ;;
-  subtree)
+  push-subtree) cmd=push ;;
+  pull-subtree) cmd=pull ;;
+  *)
     if test "${1+SET}" != SET
     then
+      show_help
       exit 1
     fi
     cmd="$1"
     shift
-    case "$cmd" in
-      push) action=push ;;
-      pull) action=pull ;;
-      *) exit 1 ;;
-    esac
     ;;
-  *) exit 1 ;;
 esac
 repos=$(cat repos)
 toplevel="$(git rev-parse --show-toplevel)"
 prefix=${PWD##$toplevel/}
 cd "$toplevel"
-case "$action" in
+case "$cmd" in
   push) git subtree push --prefix "$prefix" "$repos" main ;;
   pull) git subtree pull --prefix "$prefix" "$repos" --squash main ;;
+  *)
+    show_help
+    ;;
 esac
