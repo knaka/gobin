@@ -51,7 +51,7 @@ func (e *ptrResult[T]) NilIf(errs ...error) (*T, error) {
 			return nil, nil
 		}
 	}
-	return nil, e.Err
+	return e.Ptr, e.Err
 }
 
 func (e *ptrResult[T]) TrueIf(errs ...error) (bool, error) {
