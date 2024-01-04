@@ -27,7 +27,7 @@ case "$base" in
     shift
     ;;
 esac
-repo=$(cat .repo.default)
+repo=$(if test -r .repo; then cat .repo; else cat .repo.default; fi)
 toplevel="$(git rev-parse --show-toplevel)"
 prefix=${PWD##$toplevel/}
 cd "$toplevel"
