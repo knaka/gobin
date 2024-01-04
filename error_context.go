@@ -42,30 +42,31 @@ type ptrResult[T any] struct {
 	Err error
 }
 
-func (e *ptrResult[T]) NilIf(errs ...error) *T {
+func (e *ptrResult[T]) NilIf(errs ...error) (*T, error) {
 	if e.Err == nil {
-		return e.Ptr
+		return e.Ptr, nil
 	}
 	for _, err := range errs {
 		if e.Err == err {
-			return nil
+			return nil, nil
 		}
 	}
-	panic(e.Err)
+	return nil, e.Err
 }
 
-func (e *ptrResult[T]) TrueIf(errs ...error) bool {
+func (e *ptrResult[T]) TrueIf(errs ...error) (bool, error) {
 	if e.Err == nil {
-		return false
+		return false, nil
 	}
 	for _, err := range errs {
 		if e.Err == err {
-			return true
+			return true, nil
 		}
 	}
-	panic(e.Err)
+	return false, e.Err
 }
 
-func (e *ptrResult[T]) FalseIf(errs ...error) bool {
-	return !e.TrueIf(errs...)
+func (e *ptrResult[T]) FalseIf(errs ...error) (bool, error) {
+	b, err := e.TrueIf(errs...)
+	return !b, err
 }
