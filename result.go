@@ -12,7 +12,7 @@ func Err[T any](err error) (T, error) {
 	return empty[T](), err
 }
 
-// Let returns the result of the given function if err is nil, otherwise the error.
+// Let returns the result of the given function if err is nil.
 func Let[T any](err error, fn func() T) T {
 	if err != nil {
 		return empty[T]()
