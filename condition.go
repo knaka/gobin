@@ -1,5 +1,6 @@
 package utils
 
+// Ternary returns the first value if cond is true, otherwise the second value.
 func Ternary[T any](
 	cond bool,
 	t T,
