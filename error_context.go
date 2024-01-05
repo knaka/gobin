@@ -1,5 +1,7 @@
 package utils
 
+import "errors"
+
 // NewResult returns an error context to ignore specific errors.
 //
 // noinspection GoExportedFuncWithUnexportedType
@@ -47,7 +49,7 @@ func (e *ptrResult[T]) NilIf(errs ...error) (*T, error) {
 		return e.Ptr, nil
 	}
 	for _, err := range errs {
-		if e.Err == err {
+		if errors.Is(e.Err, err) {
 			return nil, nil
 		}
 	}
@@ -59,7 +61,7 @@ func (e *ptrResult[T]) TrueIf(errs ...error) (bool, error) {
 		return false, nil
 	}
 	for _, err := range errs {
-		if e.Err == err {
+		if errors.Is(e.Err, err) {
 			return true, nil
 		}
 	}

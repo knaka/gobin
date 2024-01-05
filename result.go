@@ -1,5 +1,7 @@
 package utils
 
+import "github.com/pkg/errors"
+
 // Ok returns the given value and nil.
 func Ok[T any](value T) (T, error) {
 	return value, nil
@@ -12,10 +14,17 @@ func Err[T any](err error) (T, error) {
 	return empty[T](), err
 }
 
+func wrapWithStack(err error) error {
+	if _, ok := err.(interface{ Cause() error }); ok {
+		return err
+	}
+	return errors.Wrap(err, "Error wrapped with stack")
+}
+
 // Bind returns the result of the given function that can fail if err is nil, otherwise the error.
 func Bind[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), err
+		return empty[T](), wrapWithStack(err)
 	}
 	return fn()
 }
@@ -23,7 +32,7 @@ func Bind[T any](err error, fn func() (T, error)) (T, error) {
 // Bind0 is an alias of Then.
 func Bind0(err error, fn func() error) error {
 	if err != nil {
-		return err
+		return wrapWithStack(err)
 	}
 	return fn()
 }
@@ -31,14 +40,14 @@ func Bind0(err error, fn func() error) error {
 // Bind1 is an alias of Bind.
 func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), err
+		return empty[T](), wrapWithStack(err)
 	}
 	return fn()
 }
 
 func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 	if err != nil {
-		return empty[T](), empty[U](), err
+		return empty[T](), empty[U](), wrapWithStack(err)
 	}
 	return fn()
 }
@@ -46,7 +55,7 @@ func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 // Then calls the given function if err is nil.
 func Then(err error, fn func() error) error {
 	if err != nil {
-		return err
+		return wrapWithStack(err)
 	}
 	return fn()
 }
