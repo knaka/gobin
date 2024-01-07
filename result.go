@@ -24,40 +24,60 @@ func wrapWithStack(err error) error {
 // Bind returns the result of the given function that can fail if err is nil, otherwise the error.
 func Bind[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), wrapWithStack(err)
+		return empty[T](), err
 	}
-	return fn()
+	t, err := fn()
+	return t, TernaryF(err == nil,
+		func() error { return nil },
+		func() error { return wrapWithStack(err) },
+	)
 }
 
 // Bind0 is an alias of Then.
 func Bind0(err error, fn func() error) error {
 	if err != nil {
-		return wrapWithStack(err)
+		return err
 	}
-	return fn()
+	err = fn()
+	return TernaryF(err == nil,
+		func() error { return nil },
+		func() error { return wrapWithStack(err) },
+	)
 }
 
 // Bind1 is an alias of Bind.
 func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), wrapWithStack(err)
+		return empty[T](), err
 	}
-	return fn()
+	t, err := fn()
+	return t, TernaryF(err == nil,
+		func() error { return nil },
+		func() error { return wrapWithStack(err) },
+	)
 }
 
 func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 	if err != nil {
-		return empty[T](), empty[U](), wrapWithStack(err)
+		return empty[T](), empty[U](), err
 	}
-	return fn()
+	t, u, err := fn()
+	return t, u, TernaryF(err == nil,
+		func() error { return nil },
+		func() error { return wrapWithStack(err) },
+	)
 }
 
 // Then calls the given function if err is nil.
 func Then(err error, fn func() error) error {
 	if err != nil {
-		return wrapWithStack(err)
+		return err
 	}
-	return fn()
+	err = fn()
+	return TernaryF(err == nil,
+		func() error { return nil },
+		func() error { return wrapWithStack(err) },
+	)
 }
 
 // Let returns the result of the given function if err is nil.
