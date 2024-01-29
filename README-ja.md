@@ -24,7 +24,7 @@ Usage of stringer:
 
 ```go
 //go:generate -command stringer go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0 --
-//go:generate stringer
+//go:generate stringer -type Fruit .
 
 //go:generate -command sqlc go run github.com/knaka/gobin@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0 --
 //go:generate sqlc generate
