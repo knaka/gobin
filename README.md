@@ -1,19 +1,32 @@
 # gobin
 
-`gobin` is a command-line tool written in Go for easily installing and managing specific versions of Go language binaries. This tool is particularly useful for versioning dependencies in Go projects.
+The command-line tool `gobin` caches binaries when executing specified packages, thereby speeding up subsequent launches. It is primarily intended for use with Go generate (`//go:generate ...`).
 
 ## Features
 
-- Install Go packages with specified versions.
-- Save binaries in a local `.gobin` directory.
-- Utilize symbolic links for easy access to specific versioned binaries.
+- Installs and executes Go packages of specified versions.
+- Saves executed binaries in a local `.gobin` directory.
+- Uses symbolic links to keep track of which versions have been installed.
 
 ## Usage
 
-```go
-//go:generate go run github.com/knaka/gobin golang.org/x/tools/cmd/stringer@v0.15.0
-//go:generate .gobin/stringer
+Options before `--` are for building, and options after `--` are for running the package.
 
-//go:generate go run github.com/knaka/gobin github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
-//go:generate .gobin/sqlc generate
+```bash
+$ go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0 -- -help
+Usage of stringer:
+stringer [flags] -type T [directory]
+stringer [flags] -type T files... # Must be a single package
+...
+```
+
+You can use commands in Go generate without installing them globally in `$GOBIN` as follows:
+
+```go
+//go:generate -command stringer go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0 --
+//go:generate stringer
+
+//go:generate -command sqlc go run github.com/knaka/gobin@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0 --
+//go:generate sqlc generate
+//go:generate sqlc vet`
 ```
