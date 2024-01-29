@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/tools/go/packages"
 	"os"
 	"os/exec"
 	"path"
@@ -26,6 +27,24 @@ func main() {
 	}
 	pkgNameVer := buildArgs[len(buildArgs)-1]
 	fields := strings.Split(pkgNameVer, "@")
+	if len(fields) < 2 {
+		cfg := &packages.Config{
+			Mode:  packages.NeedName | packages.NeedModule,
+			Tests: false,
+		}
+		packages_, err := packages.Load(cfg, pkgNameVer)
+		if err != nil {
+			panic(err)
+		}
+		if len(packages_) != 1 {
+			panic("len(packages_) != 1")
+		}
+		pkg := packages_[0]
+		if pkg.Module == nil {
+			panic("pkg.Module == nil")
+		}
+		fields = []string{pkg.PkgPath, pkg.Module.Version}
+	}
 	pkgName := fields[0]
 	pkgBase := path.Base(pkgName)
 	pkgVer := fields[1]

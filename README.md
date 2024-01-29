@@ -10,7 +10,7 @@ The command-line tool `gobin` caches binaries when executing specified packages,
 
 ## Usage
 
-Options before `--` are for building, and options after `--` are for running the package.
+Options before `--` are for building, and options after `--` are for running the package. You can omit `@...` version suffixes of the package if the module is listed in `go.mod` file.
 
 ```bash
 $ go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0 -- -help
