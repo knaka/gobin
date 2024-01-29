@@ -30,3 +30,13 @@ Usage of stringer:
 //go:generate sqlc generate
 //go:generate sqlc vet
 ```
+
+Go generate のファイル間の依存関係については、 [go-generate-fast](https://github.com/oNaiPs/go-generate-fast) と組み合わせて利用すると有用です。
+
+```gotemplate
+//go:generate -command sqlc go run github.com/knaka/gobin@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0 --
+
+//go:generate_input ./sqlc.yaml ./schema*.sql ./migrations/*.sql
+//go:generate_output ./sqlcgen/models.go
+//go:generate sqlc generate
+```
