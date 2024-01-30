@@ -1,6 +1,6 @@
 package utils
 
-import "github.com/pkg/errors"
+import "github.com/friendsofgo/errors"
 
 // Ok returns the given value and nil.
 func Ok[T any](value T) (T, error) {

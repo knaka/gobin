@@ -11,7 +11,7 @@ import (
 
 // WaitForDebugger waits for a debugger to connect if the environment variable $WAIT or $DEBUG is set
 //
-// noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func WaitForDebugger() {
 	if os.Getenv("DEBUG") == "" &&
 		os.Getenv("WAIT") == "" {

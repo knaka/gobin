@@ -4,7 +4,7 @@ import "errors"
 
 // NewResult returns an error context to ignore specific errors.
 //
-// noinspection GoExportedFuncWithUnexportedType
+//goland:noinspection GoExportedFuncWithUnexportedType
 func NewResult[T any](first T, rest ...any) *ptrResult[any] {
 	var err error
 	if len(rest) > 0 {
@@ -21,7 +21,7 @@ func NewResult[T any](first T, rest ...any) *ptrResult[any] {
 
 // NewValueResult returns a value + error context to ignore specific errors.
 //
-// noinspection GoExportedFuncWithUnexportedType
+//goland:noinspection GoExportedFuncWithUnexportedType
 func NewValueResult[T any](value T, err error) *ptrResult[T] {
 	return &ptrResult[T]{
 		Ptr: &value,
@@ -31,7 +31,7 @@ func NewValueResult[T any](value T, err error) *ptrResult[T] {
 
 // NewPtrResult returns a pointer + error context to ignore specific errors.
 //
-// noinspection GoExportedFuncWithUnexportedType
+//goland:noinspection GoExportedFuncWithUnexportedType
 func NewPtrResult[T any](ptr *T, err error) *ptrResult[T] {
 	return &ptrResult[T]{
 		Ptr: ptr,

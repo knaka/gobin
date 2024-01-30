@@ -2,7 +2,7 @@ package utils
 
 // Ensure checks if the value is available. If err is not nil, it panics.
 //
-// noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func Ensure[T any](value T, err error) T {
 	if err != nil {
 		panic(err)
@@ -12,7 +12,7 @@ func Ensure[T any](value T, err error) T {
 
 // Ensure0 checks that err is nil. If err is not nil, it panics.
 //
-// noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func Ensure0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
