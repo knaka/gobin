@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func RunCmd(args []string) (err error) {
+func Run(args ...string) (err error) {
 	var buildArgs []string
 	var cmdArgs []string
 	isBuildArg := true
@@ -27,6 +27,7 @@ func RunCmd(args []string) (err error) {
 	pkgNameVer := buildArgs[len(buildArgs)-1]
 	fields := strings.Split(pkgNameVer, "@")
 	if len(fields) < 2 {
+		// Should I parse go.mod because ”package” takes much time to run `go` command?
 		cfg := &packages.Config{
 			Mode:  packages.NeedName | packages.NeedModule,
 			Tests: false,
