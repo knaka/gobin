@@ -35,22 +35,8 @@ func findGoMod() (string, error) {
 	return filepath.Join(modDir, "go.mod"), nil
 }
 
-func Run(args ...string) (err error) {
+func Run(buildArgs []string, cmdArgs []string) (err error) {
 	utils.WaitForDebugger()
-	var buildArgs []string // Arguments for `go install ...`.
-	var cmdArgs []string   // Arguments for the binary.
-	isBuildArg := true
-	for _, arg := range args {
-		if isBuildArg && arg == "--" {
-			isBuildArg = false
-			continue
-		}
-		if isBuildArg {
-			buildArgs = append(buildArgs, arg)
-		} else {
-			cmdArgs = append(cmdArgs, arg)
-		}
-	}
 	if len(buildArgs) == 0 {
 		return errors.New("package name must be specified")
 	}

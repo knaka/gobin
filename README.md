@@ -5,7 +5,7 @@ The command-line tool `gobin` caches binaries when executing specified packages,
 ## Features
 
 - Installs and executes Go packages of specified versions.
-- Saves executed binaries in a local `.gobin` directory.
+- Saves executed binaries in the `.gobin` directory, which is located in the same directory as `go.mod` file.
 - Uses symbolic links to keep track of which versions have been installed.
 
 ## Usage
