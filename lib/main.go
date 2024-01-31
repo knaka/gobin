@@ -1,7 +1,10 @@
 package lib
 
 import (
-	"golang.org/x/tools/go/packages"
+	"errors"
+	"github.com/knaka/go-utils"
+	"golang.org/x/mod/modfile"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -9,9 +12,33 @@ import (
 	"strings"
 )
 
+func findGoMod() (string, error) {
+	modDir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		_, err = os.Stat(filepath.Join(modDir, "go.mod"))
+		if err == nil {
+			break
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		err = nil
+		parent := filepath.Dir(modDir)
+		if parent == modDir {
+			return "", errors.New("go.mod not found")
+		}
+		modDir = parent
+	}
+	return filepath.Join(modDir, "go.mod"), nil
+}
+
 func Run(args ...string) (err error) {
-	var buildArgs []string
-	var cmdArgs []string
+	utils.WaitForDebugger()
+	var buildArgs []string // Arguments for `go install ...`.
+	var cmdArgs []string   // Arguments for the binary.
 	isBuildArg := true
 	for _, arg := range args {
 		if isBuildArg && arg == "--" {
@@ -24,38 +51,64 @@ func Run(args ...string) (err error) {
 			cmdArgs = append(cmdArgs, arg)
 		}
 	}
-	pkgNameVer := buildArgs[len(buildArgs)-1]
-	fields := strings.Split(pkgNameVer, "@")
-	if len(fields) < 2 {
-		// Should I parse go.mod because ”package” takes much time to run `go` command?
-		cfg := &packages.Config{
-			Mode:  packages.NeedName | packages.NeedModule,
-			Tests: false,
+	if len(buildArgs) == 0 {
+		return errors.New("package name must be specified")
+	}
+	pkg := buildArgs[len(buildArgs)-1]
+
+	outDir := ".gobin"
+	goMod, err := findGoMod()
+	if err == nil {
+		outDir = filepath.Join(filepath.Dir(goMod), ".gobin")
+	} else {
+		goMod = ""
+		outDir = ".gobin"
+	}
+
+	pkgFields := strings.Split(pkg, "@")
+	if len(pkgFields) < 2 {
+		if goMod == "" {
+			return errors.New("package name must be in the form of pkg@ver if not in module-aware mode")
 		}
-		packages_, errSub := packages.Load(cfg, pkgNameVer)
+		mainPkgName := pkg
+		modName := pkg
+		reader, errSub := os.Open(goMod)
 		if errSub != nil {
 			return errSub
 		}
-		if len(packages_) != 1 {
-			panic("len(packages_) != 1")
+		body, errSub := io.ReadAll(reader)
+		if errSub != nil {
+			return errSub
 		}
-		pkg := packages_[0]
-		if pkg.Module == nil {
-			panic("pkg.Module == nil")
+		f, errSub := modfile.Parse(goMod, body, nil)
+		if errSub != nil {
+			return errSub
 		}
-		fields = []string{pkg.PkgPath, pkg.Module.Version}
+	outer:
+		for {
+			for _, r := range f.Require {
+				if r.Mod.Path == modName {
+					pkgFields = []string{mainPkgName, r.Mod.Version}
+					break outer
+				}
+			}
+			parent := path.Dir(modName)
+			if parent == modName {
+				return errors.New("package not found in go.mod")
+			}
+			modName = parent
+		}
 	}
-	pkgName := fields[0]
-	pkgBase := path.Base(pkgName)
-	pkgVer := fields[1]
-	pkgBaseVer := pkgBase + "@" + pkgVer
-	outDir := ".gobin"
+	mainPkgName := pkgFields[0]
+	pkgBaseName := path.Base(mainPkgName)
+	pkgVer := pkgFields[1]
+	pkgBaseVer := pkgBaseName + "@" + pkgVer
 	err = os.MkdirAll(outDir, 0755)
 	if err != nil {
 		return
 	}
-	binary := filepath.Join(outDir, pkgBase+"@"+pkgVer)
-	link := filepath.Join(outDir, pkgBase)
+	binary := filepath.Join(outDir, pkgBaseName+"@"+pkgVer)
+	link := filepath.Join(outDir, pkgBaseName)
 	_, errOutPath := os.Stat(binary)
 	_, errLinkPath := os.Stat(link)
 	if errOutPath != nil || errLinkPath != nil {
