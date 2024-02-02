@@ -52,7 +52,7 @@ You can use commands in Go generate without installing them globally in `$GOBIN`
 
 //go:generate -command sqlc go run github.com/knaka/gobin@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
 //go:generate sqlc generate
-//go:generate sqlc vet`
+//go:generate sqlc vet
 ```
 
 For managing "Go generate" dependencies between source and generated files, it is beneficial to use in combination with [go-generate-fast](https://github.com/oNaiPs/go-generate-fast).
