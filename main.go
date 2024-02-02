@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/knaka/gobin/lib"
+	"github.com/knaka/go-run-cache/lib"
 	"log"
 	"os"
 )

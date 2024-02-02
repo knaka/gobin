@@ -6,18 +6,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/knaka/go-utils"
 	"golang.org/x/mod/modfile"
 	"io"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -30,11 +31,8 @@ const cleanupThresholdDays = 90
 // Number of days after which a “@latest” version binary must be rebuilt
 const latestVersionRebuildThresholdDays = 30
 
-func findGoMod() (string, error) {
-	modDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
+func findGoMod(modDir string) (string, error) {
+	var err error
 	for {
 		_, err = os.Stat(filepath.Join(modDir, "go.mod"))
 		if err == nil {
@@ -77,9 +75,11 @@ func getGoCmd() (string, error) {
 func splitArgs(goCmd string, args []string) (runArgs []string, cmdArgs []string, err error) {
 	var buf bytes.Buffer
 	cmd := exec.Command(goCmd, append([]string{"run", "-n"}, args...)...)
+	cmd.Stdout = os.Stderr
 	cmd.Stderr = &buf
 	err = cmd.Run()
 	if err != nil {
+		_, _ = os.Stderr.Write(buf.Bytes())
 		return
 	}
 	lines := strings.Split(buf.String(), "\n")
@@ -112,7 +112,11 @@ func getGlobalCacheDir() (string, error) {
 }
 
 func getModuleCacheDir() (string, error) {
-	goMod, err := findGoMod()
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	goMod, err := findGoMod(wd)
 	if err != nil {
 		return "", err
 	}
@@ -134,47 +138,80 @@ type buildInfo struct {
 	Hash      string   `json:"hash"`
 }
 
+func getFileInfo(name string) (*file, error) {
+	stat, err := os.Stat(name)
+	if err != nil {
+		return nil, err
+	}
+	if stat.IsDir() {
+		return nil, errors.New("not a file")
+	}
+	hashStr, err := (func() (string, error) {
+		hash_ := sha1.New()
+		reader, err := os.Open(name)
+		if err != nil {
+			return "", err
+		}
+		defer (func() { _ = reader.Close() })()
+		_, err = io.Copy(hash_, reader)
+		if err != nil {
+			return "", err
+		}
+		return hex.EncodeToString(hash_.Sum(nil)), nil
+	})()
+	if err != nil {
+		return nil, err
+	}
+	return &file{
+		Name: name,
+		Hash: hashStr,
+		Size: stat.Size(),
+	}, nil
+}
+
 func getFiles(args []string) ([]*file, []string, error) {
+	if len(args) == 0 {
+		return nil, args, nil
+	}
 	var files []*file
 	buildArgsWoTgt := args
-outer:
-	for {
-		if len(buildArgsWoTgt) == 0 {
-			break outer
+	name := buildArgsWoTgt[len(buildArgsWoTgt)-1]
+	buildArgsWoTgt = buildArgsWoTgt[:len(buildArgsWoTgt)-1]
+	if stat, err := os.Stat(name); err == nil && stat.IsDir() {
+		_, err := findGoMod(filepath.Dir(name))
+		if err == nil {
+			return nil, args, nil
 		}
-		name := buildArgsWoTgt[len(buildArgsWoTgt)-1]
-		buildArgsWoTgt = buildArgsWoTgt[:len(buildArgsWoTgt)-1]
-		if name[0] == '.' || name[0] == os.PathSeparator {
-			if stat, err := os.Stat(name); err == nil {
-				if stat.IsDir() {
-					return nil, args, nil
-				}
-				hashStr, err := (func() (string, error) {
-					hash_ := sha1.New()
-					reader, err := os.Open(name)
-					if err != nil {
-						return "", err
-					}
-					defer (func() { _ = reader.Close() })()
-					_, err = io.Copy(hash_, reader)
-					if err != nil {
-						return "", err
-					}
-					return hex.EncodeToString(hash_.Sum(nil)), nil
-				})()
+		goFiles, err := os.ReadDir(name)
+		if err != nil {
+			return nil, args, nil
+		}
+		for _, goFile := range goFiles {
+			if strings.HasSuffix(goFile.Name(), ".go") {
+				p := filepath.Join(name, goFile.Name())
+				fileInfo, err := getFileInfo(p)
 				if err != nil {
-					return nil, nil, err
+					return nil, args, err
 				}
-				files = append(files, &file{
-					Name: filepath.Base(name),
-					Size: stat.Size(),
-					Hash: hashStr,
-				})
-			} else {
+				files = append(files, fileInfo)
+			}
+		}
+	} else {
+	outer:
+		for {
+			if !strings.HasSuffix(name, ".go") {
 				break outer
 			}
-		} else {
-			break outer
+			fileInfo, err := getFileInfo(name)
+			if err != nil {
+				return nil, args, err
+			}
+			files = append(files, fileInfo)
+			if len(buildArgsWoTgt) == 0 {
+				break outer
+			}
+			name = buildArgsWoTgt[len(buildArgsWoTgt)-1]
+			buildArgsWoTgt = buildArgsWoTgt[:len(buildArgsWoTgt)-1]
 		}
 	}
 	sort.Slice(files, func(i, j int) bool {
@@ -243,7 +280,6 @@ func cleanupOldBinaries(dir string) error {
 }
 
 func Run(args []string) (err error) {
-	utils.WaitForDebugger()
 	goCmd, err := getGoCmd()
 	if err != nil {
 		return
@@ -321,7 +357,11 @@ func Run(args []string) (err error) {
 		}
 		pkgFields := strings.Split(*pkg, "@")
 		if len(pkgFields) < 2 {
-			goMod, err := findGoMod()
+			wd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			goMod, err := findGoMod(wd)
 			if err != nil {
 				return errors.New("package name must be in the form of pkg@ver if not in module-aware mode")
 			}
@@ -400,12 +440,34 @@ func Run(args []string) (err error) {
 			}
 		}
 	} else {
-		log.Println("Running a directory is not cached.")
-		cmd := exec.Command(goCmd, append([]string{"run"}, buildArgs...)...)
+		log.Println("Not caching.")
+		tmpDir, err := os.MkdirTemp("", "go-run-cache")
+		if err != nil {
+			return err
+		}
+		defer (func() { _ = os.RemoveAll(tmpDir) })()
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			sig := <-sigCh
+			switch sig {
+			case syscall.SIGINT, syscall.SIGTERM:
+				_ = os.RemoveAll(tmpDir)
+			}
+		}()
+		mainPath = filepath.Join(tmpDir, "main")
+		cmd := exec.Command(goCmd, append([]string{"build", "-o", mainPath}, buildArgs...)...)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+		cmd = exec.Command(mainPath, cmdArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
-		return
+		return err
 	}
 	cmd := exec.Command(mainPath, cmdArgs...)
 	cmd.Stdout = os.Stdout
