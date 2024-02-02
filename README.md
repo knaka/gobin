@@ -20,7 +20,7 @@ $ go install github.com/knaka/go-run-cache@latest
 Executed packages are cached for later reuse. You can omit the `@...` version suffix for packages listed in the `go.mod` file. In that case, the binaries are cached in the same directory as the `go.mod` file.
 
 ```bash
-$ go run github.com/knaka/go-run-cache@latest golang.org/x/tools/cmd/stringer@v0.15.0 -help
+$ go-run-cache golang.org/x/tools/cmd/stringer@v0.15.0 -help
 Usage of stringer:
 stringer [flags] -type T [directory]
 stringer [flags] -type T files... # Must be a single package
