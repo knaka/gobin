@@ -1,6 +1,6 @@
-# gobin
+# go-run-cache
 
-The command-line tool `gobin` caches binaries when executing specified packages, thereby speeding up subsequent launches. It is primarily intended for use with Go generate (`//go:generate ...`).
+The command-line tool `go-run-cache` caches binaries when running a specified “main” package or local `.go` files, thereby speeding up subsequent launches.
 
 ## Features
 
