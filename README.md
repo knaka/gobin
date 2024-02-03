@@ -13,7 +13,7 @@ The command-line tool `go-run-cache` caches binaries when running a specified "m
 
 To install:
 
-```
+```console
 $ go install github.com/knaka/go-run-cache@latest
 ```
 
