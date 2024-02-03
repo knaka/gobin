@@ -13,23 +13,24 @@ The command-line tool `go-run-cache` caches binaries when running a specified "m
 
 To install:
 
-```console
-$ go install github.com/knaka/go-run-cache@latest
+```bash
+go install github.com/knaka/go-run-cache@latest
 ```
 
 Executed packages are cached for later reuse. You can omit the `@...` version suffix for packages listed in the `go.mod` file. In that case, the binaries are cached in the same directory as the `go.mod` file.
 
-```shell-session
+```console
 $ go-run-cache golang.org/x/tools/cmd/stringer@v0.15.0 -help
 Usage of stringer:
 stringer [flags] -type T [directory]
 stringer [flags] -type T files... # Must be a single package
 ...
+$ 
 ```
 
 It is also possible to use `go-run-cache` as a shebang line in a `.go` file to cache the binary. Inserting `--` is desirable to distinguish build targets from arguments for the command.
 
-```shell-session
+```console
 $ cat <<EOF > hello.go
 #!/usr/bin/env go-run-cache -- $0 $@; exit
 package main
@@ -42,6 +43,8 @@ func main() {
 EOF
 chmod +x hello.go
 $ ./hello.go
+Hello World!
+$
 ```
 
 You can use commands in Go generate without installing them globally in `$GOBIN` as follows:
