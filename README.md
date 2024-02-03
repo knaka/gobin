@@ -19,7 +19,7 @@ $ go install github.com/knaka/go-run-cache@latest
 
 Executed packages are cached for later reuse. You can omit the `@...` version suffix for packages listed in the `go.mod` file. In that case, the binaries are cached in the same directory as the `go.mod` file.
 
-```bash
+```shell-session
 $ go-run-cache golang.org/x/tools/cmd/stringer@v0.15.0 -help
 Usage of stringer:
 stringer [flags] -type T [directory]
@@ -29,7 +29,7 @@ stringer [flags] -type T files... # Must be a single package
 
 It is also possible to use `go-run-cache` as a shebang line in a `.go` file to cache the binary. Inserting `--` is desirable to distinguish build targets from arguments for the command.
 
-```bash
+```shell-session
 $ cat <<EOF > hello.go
 #!/usr/bin/env go-run-cache -- $0 $@; exit
 package main
@@ -47,6 +47,8 @@ $ ./hello.go
 You can use commands in Go generate without installing them globally in `$GOBIN` as follows:
 
 ```go
+package foo
+
 //go:generate -command stringer go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0
 //go:generate stringer -type Fruit .
 
@@ -58,6 +60,8 @@ You can use commands in Go generate without installing them globally in `$GOBIN`
 For managing "Go generate" dependencies between source and generated files, it is beneficial to use in combination with [go-generate-fast](https://github.com/oNaiPs/go-generate-fast).
 
 ```go
+package foo
+
 //go:generate -command sqlc go run github.com/knaka/go-run-cache@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
 
 //go:generate_input ./sqlc.yaml ./schema*.sql ./migrations/*.sql
