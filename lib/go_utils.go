@@ -75,7 +75,7 @@ func splitArgs(goCmd string, args []string) (runArgs []string, cmdArgs []string,
 		for {
 			elem := runArgs[len(runArgs)-1]
 			runArgs = runArgs[:len(runArgs)-1]
-			cmdArgs = append(cmdArgs, elem)
+			cmdArgs = append([]string{elem}, cmdArgs...)
 			expandedCmdArgs = elem + delim + expandedCmdArgs
 			delim = " "
 			if expandedCmdArgs == fields[1] {

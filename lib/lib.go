@@ -52,9 +52,9 @@ func Run(args []string) (err error) {
 		if len(goFileInfoList) > 0 {
 			return nil
 		}
-		elem := buildArgs[len(buildArgs)-1]
+		elem := buildArgsWoTgt[len(buildArgsWoTgt)-1]
 		if elem != "" && elem[0] != '.' && elem[0] != os.PathSeparator {
-			return &buildArgs[len(buildArgs)-1]
+			return &buildArgsWoTgt[len(buildArgsWoTgt)-1]
 		}
 		return nil
 	})()
