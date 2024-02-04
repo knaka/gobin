@@ -83,6 +83,9 @@ func splitArgs(goCmd string, args []string) (runArgs []string, cmdArgs []string,
 			}
 		}
 	}
+	//if len(cmdArgs) > 0 && cmdArgs[0] == "--" {
+	//	cmdArgs = cmdArgs[1:]
+	//}
 	return
 }
 
