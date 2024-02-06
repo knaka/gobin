@@ -2,19 +2,12 @@ package utils
 
 import "errors"
 
-// NewResult returns an error context to ignore specific errors.
+// NewResult returns a pointer + error context to ignore specific errors.
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func NewResult[T any](first T, rest ...any) *ptrResult[any] {
-	var err error
-	if len(rest) > 0 {
-		if errNew, ok := (rest[len(rest)-1]).(error); ok {
-			err = errNew
-		}
-	} else if errNew, ok := any(first).(error); ok {
-		err = errNew
-	}
-	return &ptrResult[any]{
+func NewResult[T any](ptr *T, err error) *ptrResult[T] {
+	return &ptrResult[T]{
+		Ptr: ptr,
 		Err: err,
 	}
 }
