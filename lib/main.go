@@ -16,7 +16,7 @@ const cleanupThresholdDays = 90
 const latestVersionRebuildThresholdDays = 30
 
 // Run runs the go command with caching. The args are the same as the arguments to the `go run` command.
-func Run(args []string) (err error) {
+func Run(args ...string) (err error) {
 	goCmd, err := findGoCmd()
 	if err != nil {
 		return
