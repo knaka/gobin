@@ -30,7 +30,7 @@ func getModuleCacheDir() (string, error) {
 		return "", err
 	}
 	modDir := filepath.Dir(goMod)
-	moduleCacheDir := filepath.Join(modDir, ".cache")
+	moduleCacheDir := filepath.Join(modDir, ".go-run-cache")
 	err = os.MkdirAll(moduleCacheDir, 0700)
 	if err != nil {
 		return "", err

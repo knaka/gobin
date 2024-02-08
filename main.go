@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	err := lib.Run(os.Args[1:])
+	err := lib.Run(os.Args[1:]...)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
