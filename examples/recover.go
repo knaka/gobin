@@ -7,7 +7,7 @@ import (
 )
 
 func foo() (err error) {
-	defer RecoverError(&err)
+	defer Catch(&err)
 	_ = Ensure(os.ReadDir("hoge"))
 	//return io.EOF
 	return nil

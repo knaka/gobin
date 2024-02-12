@@ -1,6 +1,6 @@
 package utils
 
-func RecoverError(errRef *error) {
+func Catch(errRef *error) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
 			if errRef != nil {
