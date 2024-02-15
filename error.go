@@ -10,6 +10,13 @@ func Ensure[T any](value T, err error) T {
 	return value
 }
 
+func _1[T any](value T, err error) T {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value
+}
+
 // Ensure0 checks that err is nil. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
@@ -24,18 +31,29 @@ func Ensure0[T any](first T, rest ...any) {
 	}
 }
 
-func Ensure1[T any, U any](value T, err error, fn func(T) U) U {
-	if err != nil {
+func _0[T any](first T, rest ...any) {
+	if len(rest) > 0 {
+		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
+			panic(wrapWithStack)
+		}
+	}
+	if err, ok := any(first).(error); ok && err != nil {
 		panic(wrapWithStack)
 	}
-	return fn(value)
 }
 
-func Ensure2[T any, U any](value T, err error, fn func(T) U) U {
+func Ensure1[T any](value T, err error) T {
 	if err != nil {
-		panic(wrapWithStack)
+		panic(wrapWithStack(err))
 	}
-	return fn(value)
+	return value
+}
+
+func Ensure2[T any, U any](value T, value2 U, err error) (T, U) {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value, value2
 }
 
 // Ignore ignores errors explicitly.
