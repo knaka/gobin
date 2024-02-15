@@ -10,7 +10,8 @@ func Ensure[T any](value T, err error) T {
 	return value
 }
 
-func _1[T any](value T, err error) T {
+// R1 for Result with one value.
+func R1[T any](value T, err error) T {
 	if err != nil {
 		panic(wrapWithStack(err))
 	}
@@ -31,7 +32,8 @@ func Ensure0[T any](first T, rest ...any) {
 	}
 }
 
-func _0[T any](first T, rest ...any) {
+// R0 for Result with no value.
+func R0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
 			panic(wrapWithStack)
@@ -50,6 +52,13 @@ func Ensure1[T any](value T, err error) T {
 }
 
 func Ensure2[T any, U any](value T, value2 U, err error) (T, U) {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value, value2
+}
+
+func R2[T any, U any](value T, value2 U, err error) (T, U) {
 	if err != nil {
 		panic(wrapWithStack(err))
 	}
