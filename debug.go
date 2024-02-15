@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// WaitForDebugger waits for a debugger to connect if the environment variable $WAIT or $DEBUG is set
+// Debugger waits for a debugger to connect if the environment variable $WAIT or $DEBUG is set
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
-func WaitForDebugger() {
+func Debugger() {
 	if os.Getenv("DEBUG") == "" &&
 		os.Getenv("WAIT") == "" {
 		return
@@ -45,3 +45,5 @@ outer:
 	_, _ = fmt.Fprintf(os.Stderr, "Debugger connected")
 	time.Sleep(1 * time.Second)
 }
+
+var WaitForDebugger = Debugger
