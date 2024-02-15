@@ -18,6 +18,13 @@ func R1[T any](value T, err error) T {
 	return value
 }
 
+func R[T any](value T, err error) T {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value
+}
+
 // Ensure0 checks that err is nil. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
