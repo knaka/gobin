@@ -25,17 +25,24 @@ func R[T any](value T, err error) T {
 	return value
 }
 
+func V[T any](value T, err error) T {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value
+}
+
 // Ensure0 checks that err is nil. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func Ensure0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
-			panic(wrapWithStack)
+			panic(wrapWithStack(err))
 		}
 	}
 	if err, ok := any(first).(error); ok && err != nil {
-		panic(wrapWithStack)
+		panic(wrapWithStack(err))
 	}
 }
 
@@ -43,12 +50,32 @@ func Ensure0[T any](first T, rest ...any) {
 func R0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
-			panic(wrapWithStack)
+			panic(wrapWithStack(err))
 		}
 	}
 	if err, ok := any(first).(error); ok && err != nil {
-		panic(wrapWithStack)
+		panic(wrapWithStack(err))
 	}
+}
+
+func V0[T any](first T, rest ...any) {
+	if len(rest) > 0 {
+		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
+			panic(wrapWithStack(err))
+		}
+	}
+	if err, ok := any(first).(error); ok && err != nil {
+		panic(wrapWithStack(err))
+	}
+}
+
+func E(rest ...any) error {
+	if len(rest) > 0 {
+		if err, ok := (rest[len(rest)-1]).(error); ok {
+			return err
+		}
+	}
+	panic("last argument is not an error")
 }
 
 func Ensure1[T any](value T, err error) T {
