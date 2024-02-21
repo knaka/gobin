@@ -44,11 +44,15 @@ func V0[T any](first T, rest ...any) {
 
 func E(rest ...any) error {
 	if len(rest) > 0 {
-		if err, ok := (rest[len(rest)-1]).(error); ok {
+		last := rest[len(rest)-1]
+		if last == nil {
+			return nil
+		}
+		if err, ok := last.(error); ok {
 			return err
 		}
 	}
-	panic("no argument passed")
+	panic("no error argument passed")
 }
 
 func Ensure1[T any](value T, err error) T {
