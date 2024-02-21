@@ -10,21 +10,6 @@ func Ensure[T any](value T, err error) T {
 	return value
 }
 
-// R1 for Result with one value.
-func R1[T any](value T, err error) T {
-	if err != nil {
-		panic(wrapWithStack(err))
-	}
-	return value
-}
-
-func R[T any](value T, err error) T {
-	if err != nil {
-		panic(wrapWithStack(err))
-	}
-	return value
-}
-
 func V[T any](value T, err error) T {
 	if err != nil {
 		panic(wrapWithStack(err))
@@ -36,18 +21,6 @@ func V[T any](value T, err error) T {
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func Ensure0[T any](first T, rest ...any) {
-	if len(rest) > 0 {
-		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
-			panic(wrapWithStack(err))
-		}
-	}
-	if err, ok := any(first).(error); ok && err != nil {
-		panic(wrapWithStack(err))
-	}
-}
-
-// R0 for Result with no value.
-func R0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
 			panic(wrapWithStack(err))
@@ -75,7 +48,7 @@ func E(rest ...any) error {
 			return err
 		}
 	}
-	panic("last argument is not an error")
+	panic("no argument passed")
 }
 
 func Ensure1[T any](value T, err error) T {
