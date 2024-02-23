@@ -21,11 +21,10 @@ func Debugger() {
 	}
 	pid := os.Getpid()
 	_ = V(fmt.Fprintf(os.Stderr, "Process %d is waiting\n", pid))
-outer:
 	for {
 		time.Sleep(duration)
 		if debuggerProcessExists(pid) {
-			break outer
+			break
 		}
 	}
 	_ = V(fmt.Fprintf(os.Stderr, "Debugger connected"))
@@ -35,20 +34,19 @@ outer:
 var WaitForDebugger = Debugger
 
 // This function can be platform specific.
-func debuggerProcessExists(pid int) (b bool) {
+func debuggerProcessExists(pid int) (exists bool) {
 	cmd := exec.Command("ps", "w")
-	stdout := V(cmd.StdoutPipe())
-	defer (func() { Ignore(stdout.Close()) })()
-	scanner := bufio.NewScanner(stdout)
+	cmdOut := V(cmd.StdoutPipe())
+	defer (func() { Ignore(cmdOut.Close()) })()
+	scanner := bufio.NewScanner(cmdOut)
 	V0(cmd.Start()) // Start() does not wait while Run() does
+	defer (func() { V0(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "dlv") &&
 			strings.Contains(line, fmt.Sprintf("attach %d", pid)) {
-			b = true
-			break
+			return true
 		}
 	}
-	V0(cmd.Wait())
-	return
+	return false
 }
