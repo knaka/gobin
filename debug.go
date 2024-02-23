@@ -1,13 +1,15 @@
 package utils
 
 import (
+	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+const duration = 1 * time.Second
 
 // Debugger waits for a debugger to connect if the environment variable $WAIT or $DEBUG is set
 //
@@ -18,32 +20,35 @@ func Debugger() {
 		return
 	}
 	pid := os.Getpid()
-	_, _ = fmt.Fprintf(os.Stderr, "Process %d is waiting\n", pid)
+	_ = V(fmt.Fprintf(os.Stderr, "Process %d is waiting\n", pid))
 outer:
 	for {
-		time.Sleep(1 * time.Second)
-		lines := (func() string {
-			var err error
-			command := exec.Command("ps", "w")
-			stdout, err := command.StdoutPipe()
-			defer Let0(err, func() { _ = stdout.Close() })
-			err = Then(err, func() error { return command.Start() })
-			defer Let0(err, func() { _ = command.Wait() })
-			data, err := Bind(err, func() ([]byte, error) { return io.ReadAll(stdout) })
-			if err != nil {
-				panic(err)
-			}
-			return string(data)
-		})()
-		for _, line := range strings.Split(lines, "\n") {
-			if strings.Contains(line, "dlv") &&
-				strings.Contains(line, fmt.Sprintf("attach %d", pid)) {
-				break outer
-			}
+		time.Sleep(duration)
+		if debuggerProcessExists(pid) {
+			break outer
 		}
 	}
-	_, _ = fmt.Fprintf(os.Stderr, "Debugger connected")
-	time.Sleep(1 * time.Second)
+	_ = V(fmt.Fprintf(os.Stderr, "Debugger connected"))
+	time.Sleep(duration)
 }
 
 var WaitForDebugger = Debugger
+
+// This function can be platform specific.
+func debuggerProcessExists(pid int) (b bool) {
+	cmd := exec.Command("ps", "w")
+	stdout := V(cmd.StdoutPipe())
+	defer (func() { Ignore(stdout.Close()) })()
+	scanner := bufio.NewScanner(stdout)
+	V0(cmd.Start()) // Start() does not wait while Run() does
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "dlv") &&
+			strings.Contains(line, fmt.Sprintf("attach %d", pid)) {
+			b = true
+			break
+		}
+	}
+	V0(cmd.Wait())
+	return
+}
