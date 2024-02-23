@@ -2,32 +2,32 @@ package utils
 
 import "errors"
 
-// Result returns a pointer + error result context to ignore specific errors.
+// PR returns a pointer + error result context.
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func Result[T any](ptr *T, err error) *ptrResult[T] {
-	return &ptrResult[T]{
+func PR[T any](ptr *T, err error) *pointerResult[T] {
+	return &pointerResult[T]{
 		Ptr: ptr,
 		Err: err,
 	}
 }
 
-// ValueResult returns a value + error result context to ignore specific errors.
+// R returns a value + error result context.
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func ValueResult[T any](value T, err error) *ptrResult[T] {
-	return &ptrResult[T]{
+func R[T any](value T, err error) *pointerResult[T] {
+	return &pointerResult[T]{
 		Ptr: &value,
 		Err: err,
 	}
 }
 
-type ptrResult[T any] struct {
+type pointerResult[T any] struct {
 	Ptr *T
 	Err error
 }
 
-func (e *ptrResult[T]) NilIf(errs ...error) *T {
+func (e *pointerResult[T]) NilIf(errs ...error) *T {
 	if e.Err == nil {
 		return e.Ptr
 	}
@@ -39,19 +39,19 @@ func (e *ptrResult[T]) NilIf(errs ...error) *T {
 	panic(wrapWithStack(e.Err))
 }
 
-//func (e *ptrResult[T]) NilIfF(fn ...func(error) bool) (*T, error) {
-//	if e.Err == nil {
-//		return e.Ptr, nil
-//	}
-//	for _, f := range fn {
-//		if f(e.Err) {
-//			return nil, nil
-//		}
-//	}
-//	return e.Ptr, e.Err
-//}
+func (e *pointerResult[T]) NilIfF(fn ...func(error) bool) *T {
+	if e.Err == nil {
+		return e.Ptr
+	}
+	for _, f := range fn {
+		if f(e.Err) {
+			return nil
+		}
+	}
+	panic(wrapWithStack(e.Err))
+}
 
-func (e *ptrResult[T]) TrueIf(errs ...error) bool {
+func (e *pointerResult[T]) TrueIf(errs ...error) bool {
 	if e.Err == nil {
 		return false
 	}
@@ -63,6 +63,6 @@ func (e *ptrResult[T]) TrueIf(errs ...error) bool {
 	panic(wrapWithStack(e.Err))
 }
 
-func (e *ptrResult[T]) FalseIf(errs ...error) bool {
+func (e *pointerResult[T]) FalseIf(errs ...error) bool {
 	return !e.TrueIf(errs...)
 }

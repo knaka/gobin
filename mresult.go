@@ -1,6 +1,6 @@
 package utils
 
-import "github.com/friendsofgo/errors"
+// Monad-style error handling functions.
 
 // Ok returns the given value and nil.
 func Ok[T any](value T) (T, error) {
@@ -12,13 +12,6 @@ func empty[T any]() (t T) { return }
 // Err returns a zero value and the given error.
 func Err[T any](err error) (T, error) {
 	return empty[T](), err
-}
-
-func wrapWithStack(err error) error {
-	if _, ok := err.(interface{ Cause() error }); ok {
-		return err
-	}
-	return errors.Wrap(err, "Error wrapped with stack")
 }
 
 // Bind returns the result of the given function that can fail if err is nil, otherwise the error.

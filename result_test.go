@@ -14,21 +14,22 @@ func doSomething() (*foo, error) {
 }
 
 func TestNewResult(t *testing.T) {
-	foo1, err := Result((func() (*foo, error) {
+	foo1 := PR((func() (*foo, error) {
 		return &foo{}, io.EOF
 	})()).NilIf(io.EOF)
-	assert.Nil(t, err)
 	assert.Nil(t, foo1)
 
-	foo2, err := Result((func() (*foo, error) {
-		return &foo{}, nil
-	})()).NilIf(io.EOF)
-	assert.Nil(t, err)
+	foo2 := PR((func() (*foo, error) { return &foo{}, nil })()).NilIf(io.EOF)
 	assert.NotNil(t, foo2)
+}
 
-	foo3, err := Result((func() (*foo, error) {
-		return &foo{}, io.EOF
-	})()).NilIf(errors.New("bar"))
+func testCatch() (err error) {
+	defer Catch(&err)
+	Ignore(PR((func() (*foo, error) { return &foo{}, io.EOF })()).NilIf(errors.New("bar")))
+	return nil
+}
+
+func TestCatch(t *testing.T) {
+	err := testCatch()
 	assert.NotNil(t, err)
-	assert.NotNil(t, foo3)
 }
