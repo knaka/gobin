@@ -6,7 +6,7 @@ func wrapWithStack(err error) error {
 	if _, ok := err.(interface{ Cause() error }); ok {
 		return err
 	}
-	return errors.Wrap(err, "Error wrapped with stack")
+	return errors.Wrap(err, "wrapped with stack")
 }
 
 // V returns the value. If err is not nil, it panics.
