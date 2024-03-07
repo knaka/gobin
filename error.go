@@ -48,4 +48,6 @@ func E(rest ...any) error {
 }
 
 // Ignore ignores an error explicitly.
+//
+//goland:noinspection GoUnusedParameter
 func Ignore[T any](T, ...any) {}
