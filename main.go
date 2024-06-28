@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	. "github.com/knaka/go-utils"
+	"github.com/mattn/go-shellwords"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"log"
@@ -22,16 +23,14 @@ func help() {
 }
 
 var fileBaseList = []string{
-	"Gofile",
 	"Gobinfile",
-	".Gofile",
 	".Gobinfile",
 }
 
 type Gobin struct {
 	pkg     string
 	ver     string
-	tags    string
+	opts    []string
 	comment string
 }
 
@@ -71,37 +70,19 @@ func getGobinList() (gobinList []Gobin, err error) {
 			continue
 		}
 		comment := TernaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
-		divs = strings.SplitN(pkgVerTags, ",", 2)
+		divs = strings.SplitN(pkgVerTags, " ", 2)
 		pkgVer := divs[0]
-		tags := TernaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
+		optsStr := TernaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
+		opts := V(shellwords.Parse(optsStr))
 		divs = strings.SplitN(pkgVer, "@", 2)
 		pkg := divs[0]
 		ver := TernaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
-		if ver == "latest" {
-			divs = strings.Split(pkg, "/")
-			module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
-			divs = divs[3:]
-			for {
-				cmd := exec.Command("go", "list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver))
-				cmd.Env = append(os.Environ(), "GO111MODULE=on")
-				goListOutput := GoListOutput{}
-				V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
-				if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
-					ver = goListOutput.Version
-					break
-				}
-				if len(divs) == 0 {
-					return nil, fmt.Errorf("no version found for %s", pkg)
-				}
-				module = fmt.Sprintf("%s/%s", module, divs[0])
-				divs = divs[1:]
-			}
-		}
 		gobinList = append(gobinList, Gobin{
 			pkg:     pkg,
 			ver:     ver,
-			tags:    tags,
-			comment: comment})
+			opts:    opts,
+			comment: comment,
+		})
 	}
 	sugar.Infof("gobinList: %+v", gobinList)
 	return gobinList, nil
@@ -148,25 +129,54 @@ var goEnv = sync.OnceValues(func() (goEnv_ GoEnv, err error) {
 	return
 })
 
-func gobinApply(_ []string) (err error) {
+func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error) {
+	if ver != "latest" {
+		return ver, nil
+	}
+	divs := strings.Split(pkg, "/")
+	module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
+	divs = divs[3:]
+	for {
+		cmd := exec.Command(V(goCmd()), "list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver))
+		cmd.Env = append(os.Environ(), "GO111MODULE=on")
+		goListOutput := GoListOutput{}
+		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
+		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
+			ver = goListOutput.Version
+			break
+		}
+		if len(divs) == 0 {
+			return "", fmt.Errorf("no version found for %s", pkg)
+		}
+		module = fmt.Sprintf("%s/%s", module, divs[0])
+		divs = divs[1:]
+	}
+	return ver, nil
+}
+
+func apply(_ []string) (err error) {
 	defer Catch(&err)
 	gobinList := V(getGobinList())
-
 	for _, gobin := range gobinList {
+		gobin.ver = V(resolveLatestVersion(gobin.pkg, gobin.ver))
+		basePath := filepath.Join(V(goBin()), path.Base(gobin.pkg))
+		baseVerPath := filepath.Join(V(goBin()), fmt.Sprintf("%s@%s", path.Base(gobin.pkg), gobin.ver))
 		if stat, err := os.Stat(filepath.Join(V(goBin()), fmt.Sprintf("%s@%s", path.Base(gobin.pkg), gobin.ver))); err == nil && !stat.IsDir() {
 			sugar.Infof("Skipping %s@%s", gobin.pkg, gobin.ver)
-			continue
+		} else {
+			args := []string{"install"}
+			args = append(args, gobin.opts...)
+			args = append(args, fmt.Sprintf("%s@%s", gobin.pkg, gobin.ver))
+			sugar.Infof("go %+v", args)
+			goCmd := V(goCmd())
+			cmd := exec.Command(goCmd, args...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			V0(cmd.Run())
+			V0(os.Rename(basePath, baseVerPath))
 		}
-		args := []string{"install"}
-		if gobin.tags != "" {
-			args = append(args, "-tags", gobin.tags)
-		}
-		args = append(args, fmt.Sprintf("%s@%s", gobin.pkg, gobin.ver))
-		//goCmd := V(goCmd())
-		goCmd := "echo"
-		cmd := exec.Command(goCmd, args...)
-		cmd.Stdout = os.Stdout
-		V0(cmd.Run())
+		Ignore(os.Remove(basePath))
+		V0(os.Link(baseVerPath, basePath))
 	}
 	return nil
 }
@@ -189,7 +199,9 @@ func main() {
 	args := os.Args[2:]
 	switch subCmd {
 	case "apply":
-		err = gobinApply(args)
+		err = apply(args)
+		//case "install": err = install(args)
+		//case "run": err = run(args)
 	}
 	if err != nil {
 		log.Fatalf("Error: %+v", err)
