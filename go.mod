@@ -1,4 +1,4 @@
-module github.com/knaka/go-run-cache
+module github.com/knaka/gobin
 
 go 1.20
 
