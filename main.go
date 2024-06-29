@@ -57,6 +57,7 @@ func getGobinList() (gobinList []Gobin, err error) {
 		return
 	}
 	filePath := filePathList[0]
+	sugar.Debugf("filePath: %s", filePath)
 	scanner := bufio.NewScanner(V(os.Open(filePath)))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -69,7 +70,9 @@ func getGobinList() (gobinList []Gobin, err error) {
 		if pkgVerTags == "" {
 			continue
 		}
+		sugar.Debugf("cp0\n")
 		comment := TernaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
+		sugar.Debugf("cp1\n")
 		divs = strings.SplitN(pkgVerTags, " ", 2)
 		pkgVer := divs[0]
 		optsStr := TernaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
