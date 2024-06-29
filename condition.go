@@ -19,7 +19,13 @@ func TernaryF[T any](
 	f func() T,
 ) T {
 	if cond {
+		if t == nil {
+			return empty[T]()
+		}
 		return t()
+	}
+	if f == nil {
+		return empty[T]()
 	}
 	return f()
 }
