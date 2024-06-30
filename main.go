@@ -179,7 +179,7 @@ func apply(_ []string) (err error) {
 			V0(os.Rename(basePath, baseVerPath))
 		}
 		Ignore(os.Remove(basePath))
-		V0(os.Link(baseVerPath, basePath))
+		V0(os.Symlink(baseVerPath, basePath))
 	}
 	return nil
 }
