@@ -19,6 +19,16 @@ func V[T any](value T, err error) T {
 	return value
 }
 
+// V2 returns two values. If err is not nil, it panics.
+//
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
+func V2[T any, U any](value1 T, value2 U, err error) (T, U) {
+	if err != nil {
+		panic(wrapWithStack(err))
+	}
+	return value1, value2
+}
+
 // V0 returns no value. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
