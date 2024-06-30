@@ -1,6 +1,6 @@
-# go-run-cache
+# gobin
 
-The command-line tool `go-run-cache` caches binaries when running a specified "main" package or local, non-module-aware `.go` files, thereby speeding up subsequent launches.
+The command-line tool `gobin` caches binaries when running a specified "main" package or local, non-module-aware `.go` files, thereby speeding up subsequent launches.
 
 ## Features
 
@@ -14,13 +14,13 @@ The command-line tool `go-run-cache` caches binaries when running a specified "m
 To install:
 
 ```bash
-go install github.com/knaka/go-run-cache@latest
+go install github.com/knaka/gobin@latest
 ```
 
 Executed packages are cached for later reuse. You can omit the `@...` version suffix for packages listed in the `go.mod` file. In that case, the binaries are cached in the same directory as the `go.mod` file.
 
 ```console
-$ go-run-cache golang.org/x/tools/cmd/stringer@v0.15.0 -help
+$ gobin run golang.org/x/tools/cmd/stringer@v0.15.0 -help
 Usage of stringer:
 stringer [flags] -type T [directory]
 stringer [flags] -type T files... # Must be a single package
@@ -28,11 +28,11 @@ stringer [flags] -type T files... # Must be a single package
 $ 
 ```
 
-It is also possible to use `go-run-cache` as a shebang line in a `.go` file to cache the binary. Inserting `--` is desirable to distinguish build targets from arguments for the command.
+It is also possible to use `gobin` as a shebang line in a `.go` file to cache the binary. Inserting `--` is desirable to distinguish build targets from arguments for the command.
 
 ```console
 $ cat <<EOF > hello.go
-#!/usr/bin/env go-run-cache -- $0 $@; exit
+#!/usr/bin/env gobin run -- $0 $@; exit
 package main
 
 import "fmt"
@@ -52,10 +52,10 @@ You can use commands in Go generate without installing them globally in `$GOBIN`
 ```go
 package foo
 
-//go:generate -command stringer go run github.com/knaka/gobin@latest golang.org/x/tools/cmd/stringer@v0.15.0
+//go:generate -command stringer go run github.com/knaka/gobin@latest run golang.org/x/tools/cmd/stringer@v0.15.0
 //go:generate stringer -type Fruit .
 
-//go:generate -command sqlc go run github.com/knaka/gobin@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
+//go:generate -command sqlc go run github.com/knaka/gobin@latest run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
 //go:generate sqlc generate
 //go:generate sqlc vet
 ```
@@ -65,7 +65,7 @@ For managing "Go generate" dependencies between source and generated files, it i
 ```go
 package foo
 
-//go:generate -command sqlc go run github.com/knaka/go-run-cache@latest github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
+//go:generate -command sqlc go run github.com/knaka/gobin@latest run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.22.0
 
 //go:generate_input ./sqlc.yaml ./schema*.sql ./migrations/*.sql
 //go:generate_output ./sqlcgen/models.go
