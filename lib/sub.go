@@ -1,4 +1,3 @@
-// package lib
 package lib
 
 import (
@@ -105,6 +104,8 @@ func findGobinListFile(dirPath string) (gobinListPath string, gobinPath string, 
 	return "", "", fmt.Errorf("no gobin list file found")
 }
 
+// Bootstrap functions to be called from standalone main function.
+
 func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	module := "github.com/knaka/gobin"
 	ver := "latest"
@@ -118,7 +119,7 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	}
 	// Check if the binary of any version is already installed.
 	if _, err = os.Stat(filepath.Join(gobinPath, name)); err == nil {
-		return "", err
+		return filepath.Join(gobinPath, name), err
 	}
 	cmd := exec.Command("go", "list", "-m", moduleVer)
 	cmd.Env = append(os.Environ(), "GO111MODULE=on")
@@ -151,7 +152,7 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 func gobin(args []string) (err error) {
 	cmdPath, err := ensureGobinCmdInstalled()
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	cmd := exec.Command(cmdPath, args...)
 	cmd.Stdout = os.Stdout
@@ -164,10 +165,14 @@ func gobin(args []string) (err error) {
 	return nil
 }
 
-func gobinRun(args []string) (err error) {
-	return gobin(append([]string{"run"}, args...))
-}
-
 func gobinApply(args []string) (err error) {
 	return gobin(append([]string{"apply"}, args...))
+}
+
+func gobinInstall(args []string) (err error) {
+	return gobin(append([]string{"install"}, args...))
+}
+
+func gobinRun(args []string) (err error) {
+	return gobin(append([]string{"run"}, args...))
 }
