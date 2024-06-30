@@ -1,88 +1,200 @@
 package lib
 
 import (
-	"math/rand"
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"github.com/mattn/go-shellwords"
+	"go.uber.org/zap"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+	"sync"
+
+	. "github.com/knaka/go-utils"
 )
 
-// Average number of launches between cleanups
-const cleanupCycle = 100
+type Gobin struct {
+	pkgWoVer  string
+	ver       string
+	buildOpts []string
+	comment   string
+}
 
-// Number of days after which a binary is considered old
-const cleanupThresholdDays = 90
+type GoListOutput struct {
+	Version string `json:"Version"`
+}
 
-// Number of days after which a “@latest” version binary must be rebuilt
-const latestVersionRebuildThresholdDays = 30
+var logger = V(zap.NewDevelopment())
+var sugar = logger.Sugar()
 
-// Run runs the go command with caching. The args are the same as the arguments to the `go run` command.
-func Run(args ...string) (err error) {
-	goCmd, err := findGoCmd()
-	if err != nil {
-		return
-	}
-	goEnv, err := getGoEnv(goCmd)
-	if err != nil {
-		return
-	}
-	buildArgs, cmdArgs, err := splitArgs(goCmd, args)
-	if err != nil {
-		return
-	}
-	globalCacheDir, err := ensureGlobalCacheDir()
-	if err != nil {
-		return
-	}
-
-	// Clean up old binaries.
-	if rand.Intn(cleanupCycle) == 0 {
-		err = cleanupOldBinaries(globalCacheDir)
-		if err != nil {
-			return
+func getGobinList() (gobinList []Gobin, gobinPath string, err error) {
+	defer Catch(&err)
+	filePath, gobinPath := V2(findGobinListFile("."))
+	sugar.Debugf("filePath: %s", filePath)
+	scanner := bufio.NewScanner(V(os.Open(filePath)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
 		}
+		divs := strings.SplitN(line, "#", 2)
+		pkgVerTags := strings.TrimSpace(divs[0])
+		if pkgVerTags == "" {
+			continue
+		}
+		sugar.Debugf("cp0\n")
+		comment := TernaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
+		sugar.Debugf("cp1\n")
+		divs = strings.SplitN(pkgVerTags, " ", 2)
+		pkgVer := divs[0]
+		optsStr := TernaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
+		opts := V(shellwords.Parse(optsStr))
+		divs = strings.SplitN(pkgVer, "@", 2)
+		pkgWoVer := divs[0]
+		ver := TernaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
+		gobinList = append(gobinList, Gobin{
+			pkgWoVer:  pkgWoVer,
+			ver:       ver,
+			buildOpts: opts,
+			comment:   comment,
+		})
 	}
+	sugar.Infof("gobinList: %+v", gobinList)
+	return gobinList, gobinPath, nil
+}
 
-	// Go file targets
-	goFileInfoList, buildArgsWoTgt, err := getGoFileInfoList(buildArgs)
-	if err != nil {
-		return
+var goVersion = sync.OnceValues(func() (goVersion string, err error) {
+	defer Catch(&err)
+	return V(getGoEnv()).Version, nil
+})
+
+func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error) {
+	if ver != "latest" {
+		return ver, nil
 	}
+	divs := strings.Split(pkg, "/")
+	module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
+	divs = divs[3:]
+	for {
+		cmd := exec.Command(V(getGoCmdPath()), "list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver))
+		cmd.Env = append(os.Environ(), "GO111MODULE=on")
+		goListOutput := GoListOutput{}
+		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
+		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
+			ver = goListOutput.Version
+			break
+		}
+		if len(divs) == 0 {
+			return "", fmt.Errorf("no version found for %s", pkg)
+		}
+		module = fmt.Sprintf("%s/%s", module, divs[0])
+		divs = divs[1:]
+	}
+	return ver, nil
+}
 
-	// Target package
-	pkg := (func() *string {
-		if len(goFileInfoList) > 0 {
+func ensureInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
+	defer Catch(&err)
+	name := path.Base(pkgWoVer)
+	resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
+	namePath := filepath.Join(gobinPath, name)
+	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
+	baseVerPath := filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
+	if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
+		sugar.Infof("Skipping %s@%s", pkgWoVer, resolvedVer)
+	} else {
+		args := []string{"install"}
+		args = append(args, buildOpts...)
+		args = append(args, fmt.Sprintf("%s@%s", pkgWoVer, resolvedVer))
+		sugar.Infof("go %+v", args)
+		cmd := exec.Command(V(getGoCmdPath()), args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		V0(cmd.Run())
+		V0(os.Rename(namePath, baseVerPath))
+	}
+	Ignore(os.Remove(namePath))
+	V0(os.Symlink(nameVer, namePath))
+	return nil
+}
+
+var rePackage = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(
+		// Are there a module with `{1,}` name?
+		`[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}(/[-a-zA-Z0-9:%_+.~#?&=]+){2,}@[-a-zA-Z0-9.]+`,
+	)
+})
+
+func isPackage(s string) bool {
+	s = strings.TrimSpace(s)
+	return rePackage().MatchString(s)
+}
+
+func Run(args []string) (err error) {
+	return installEx(args, true)
+}
+
+func Install(args []string) (err error) {
+	return installEx(args, false)
+}
+
+func installEx(args []string, shouldRun bool) (err error) {
+	defer Catch(&err)
+	gobinList, gobinPath := V2(getGobinList())
+	for _, gobin := range gobinList {
+		pkgWoVer := gobin.pkgWoVer
+		pkgBase := path.Base(pkgWoVer)
+		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.ver)
+		if !slices.Contains([]string{pkgWoVer, pkgBase, pkg}, args[0]) {
+			continue
+		}
+		resolvedVer := V(resolveLatestVersion(pkgWoVer, gobin.ver))
+		V0(ensureInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
+		if !shouldRun {
 			return nil
 		}
-		elem := buildArgs[len(buildArgs)-1]
-		if elem != "" && elem[0] != '.' && elem[0] != os.PathSeparator {
-			return &buildArgs[len(buildArgs)-1]
-		}
+		cmd := exec.Command(filepath.Join(gobinPath, pkgBase), args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		V0(cmd.Run())
 		return nil
-	})()
-
-	// Run
-	if len(goFileInfoList) > 0 {
-		buildInfo := newBuildInfoWithFiles(
-			goEnv.Version,
-			buildArgsWoTgt,
-			goFileInfoList,
-		)
-		exeCacheDir := filepath.Join(globalCacheDir, buildInfo.Hash)
-		err = goRunFiles(buildInfo, exeCacheDir, goCmd, buildArgs, cmdArgs)
-	} else if pkg != nil && *pkg != "" {
-		buildInfo := newBuildInfoWithPkg(
-			goEnv.Version,
-			buildArgsWoTgt,
-			pkg,
-		)
-		exeCacheDir := filepath.Join(globalCacheDir, buildInfo.Hash)
-		err = goRunPackage(buildInfo, exeCacheDir, goCmd, buildArgs, pkg, cmdArgs)
-	} else {
-		err = goRunNoCache(goCmd, buildArgs, cmdArgs)
 	}
-	if err != nil {
-		return
+	for i, arg := range args {
+		if !isPackage(arg) {
+			continue
+		}
+		pkg := arg
+		buildOpts := args[:i]
+		cmdOpts := args[i+1:]
+		divs := strings.Split(pkg, "@")
+		pkgWoVer := divs[0]
+		ver := divs[1]
+		resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
+		V0(ensureInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
+		if !shouldRun {
+			return nil
+		}
+		cmd := exec.Command(filepath.Join(gobinPath, path.Base(pkgWoVer)), cmdOpts...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		V0(cmd.Run())
+		return nil
 	}
+	return fmt.Errorf("no matching command found")
+}
 
-	return
+func Apply(_ []string) (err error) {
+	defer Catch(&err)
+	gobinList, gobinPath := V2(getGobinList())
+	for _, gobin := range gobinList {
+		resolvedVer := V(resolveLatestVersion(gobin.pkgWoVer, gobin.ver))
+		V0(ensureInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))
+	}
+	return nil
 }

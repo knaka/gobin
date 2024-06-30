@@ -1,10 +1,27 @@
 package lib
 
-import "testing"
+import (
+	"testing"
+)
 
-func TestRun(t *testing.T) {
-	err := Run("golang.org/x/tools/cmd/stringer@v0.15.0", "-help")
-	if err != nil {
-		t.Errorf("Error: %v", err)
+func Test_isPackage(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "Test 1", args: args{"github.com/knaka/gobin/cmd/foo@latest"}, want: true},
+		{name: "Test 2", args: args{"foo@example.com"}, want: false},
+		{name: "Test 3", args: args{"golang.org/x/tools/cmd/goyacc@latest"}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isPackage(tt.args.s); got != tt.want {
+				t.Errorf("isPackage() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
