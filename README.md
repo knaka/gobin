@@ -71,3 +71,10 @@ package foo
 //go:generate_output ./sqlcgen/models.go
 //go:generate sqlc generate
 ```
+
+# Todo
+
+* [ ] Add tests // [Add tests · Issue #1 · knaka/gobin](https://github.com/knaka/gobin/issues/1)
+* [ ] Add `install` subcommand // [Add `install` subcommand · Issue #3 · knaka/gobin](https://github.com/knaka/gobin/issues/3)
+* [ ] Add `run` subcommand // [Add `run` subcommand · Issue #4 · knaka/gobin](https://github.com/knaka/gobin/issues/4)
+* [ ] Add local installation feature // [Add local installation feature · Issue #5 · knaka/gobin](https://github.com/knaka/gobin/issues/5)

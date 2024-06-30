@@ -163,23 +163,23 @@ func apply(_ []string) (err error) {
 	for _, gobin := range gobinList {
 		gobin.ver = V(resolveLatestVersion(gobin.pkg, gobin.ver))
 		basePath := filepath.Join(V(goBin()), path.Base(gobin.pkg))
-		baseVerPath := filepath.Join(V(goBin()), fmt.Sprintf("%s@%s", path.Base(gobin.pkg), gobin.ver))
-		if stat, err := os.Stat(filepath.Join(V(goBin()), fmt.Sprintf("%s@%s", path.Base(gobin.pkg), gobin.ver))); err == nil && !stat.IsDir() {
+		baseVer := fmt.Sprintf("%s@%s", path.Base(gobin.pkg), gobin.ver)
+		baseVerPath := filepath.Join(V(goBin()), baseVer)
+		if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
 			sugar.Infof("Skipping %s@%s", gobin.pkg, gobin.ver)
 		} else {
 			args := []string{"install"}
 			args = append(args, gobin.opts...)
 			args = append(args, fmt.Sprintf("%s@%s", gobin.pkg, gobin.ver))
 			sugar.Infof("go %+v", args)
-			goCmd := V(goCmd())
-			cmd := exec.Command(goCmd, args...)
+			cmd := exec.Command(V(goCmd()), args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			V0(cmd.Run())
 			V0(os.Rename(basePath, baseVerPath))
 		}
 		Ignore(os.Remove(basePath))
-		V0(os.Symlink(baseVerPath, basePath))
+		V0(os.Symlink(baseVer, basePath))
 	}
 	return nil
 }
