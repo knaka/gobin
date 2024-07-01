@@ -29,6 +29,7 @@ var goVersion = sync.OnceValues(func() (goVersion string, err error) {
 })
 
 func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error) {
+	// Todo: Should resolve if ver is “latest” or not a “full” semantic version?
 	if ver != "latest" {
 		return ver, nil
 	}
@@ -38,6 +39,7 @@ func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error
 	for {
 		cmd := exec.Command(V(getGoCmdPath()), "list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
+		cmd.Stderr = os.Stderr
 		goListOutput := GoListOutput{}
 		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
 		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {

@@ -93,10 +93,14 @@ type Gobin struct {
 	comment   string
 }
 
+// todo: gobinList should be a pkgWoVer → Gobin map?
 func getGobinList(dirPath string) (gobinList []Gobin, gobinPath string, err error) {
 	filePath, gobinPath, err := findGobinListFile(dirPath)
 	if err != nil {
 		return nil, "", err
+	}
+	if filePath == "" {
+		return gobinList, gobinPath, nil
 	}
 	reader, err := os.Open(filePath)
 	if err != nil {
@@ -172,7 +176,7 @@ func findGobinListFile(dirPath string) (gobinListPath string, gobinPath string, 
 			return "", "", err
 		}
 	}
-	return "", "", fmt.Errorf("no gobin list file found")
+	return "", globalGobinPath, nil
 }
 
 // Bootstrap functions to be called from standalone main function.
@@ -203,6 +207,7 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 		return filepath.Join(gobinPath, nameVer), err
 	}
 	resolvedVer := ver
+	// Todo: Should resolve if ver is “latest” or not a “full” semantic version?
 	if resolvedVer == "latest" {
 		cmd := exec.Command("go", "list", "-m", moduleVer)
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
