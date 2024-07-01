@@ -1,10 +1,8 @@
 package lib
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/mattn/go-shellwords"
 	"go.uber.org/zap"
 	"os"
 	"os/exec"
@@ -31,43 +29,6 @@ type GoListOutput struct {
 
 var logger = V(zap.NewDevelopment())
 var sugar = logger.Sugar()
-
-func getGobinList() (gobinList []Gobin, gobinPath string, err error) {
-	defer Catch(&err)
-	filePath, gobinPath := V2(findGobinListFile("."))
-	sugar.Debugf("filePath: %s", filePath)
-	scanner := bufio.NewScanner(V(os.Open(filePath)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		divs := strings.SplitN(line, "#", 2)
-		pkgVerTags := strings.TrimSpace(divs[0])
-		if pkgVerTags == "" {
-			continue
-		}
-		sugar.Debugf("cp0\n")
-		comment := TernaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
-		sugar.Debugf("cp1\n")
-		divs = strings.SplitN(pkgVerTags, " ", 2)
-		pkgVer := divs[0]
-		optsStr := TernaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
-		opts := V(shellwords.Parse(optsStr))
-		divs = strings.SplitN(pkgVer, "@", 2)
-		pkgWoVer := divs[0]
-		ver := TernaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
-		gobinList = append(gobinList, Gobin{
-			pkgWoVer:  pkgWoVer,
-			ver:       ver,
-			buildOpts: opts,
-			comment:   comment,
-		})
-	}
-	sugar.Infof("gobinList: %+v", gobinList)
-	return gobinList, gobinPath, nil
-}
 
 var goVersion = sync.OnceValues(func() (goVersion string, err error) {
 	defer Catch(&err)
@@ -149,7 +110,7 @@ func Install(args []string) (err error) {
 
 func installEx(args []string, shouldRun bool) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList())
+	gobinList, gobinPath := V2(getGobinList("."))
 	for _, gobin := range gobinList {
 		pkgWoVer := gobin.pkgWoVer
 		pkgBase := path.Base(pkgWoVer)
@@ -195,7 +156,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 // Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList())
+	gobinList, gobinPath := V2(getGobinList("."))
 	for _, gobin := range gobinList {
 		resolvedVer := V(resolveLatestVersion(gobin.pkgWoVer, gobin.ver))
 		V0(ensurePackageInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))

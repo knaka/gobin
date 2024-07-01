@@ -1,4 +1,6 @@
-package lib
+//go:build ignore
+
+package main
 
 // Do not use 3rd party packages because this file is used to generate standalone go program files.
 import (
@@ -248,4 +250,8 @@ func install(args []string) (err error) {
 
 func run(args []string) (err error) {
 	return gobin(append([]string{"run"}, args...))
+}
+
+func main() {
+	run(os.Args[1:])
 }
