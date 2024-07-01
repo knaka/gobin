@@ -17,15 +17,15 @@ func TernaryF[T any](
 	cond bool,
 	t func() T,
 	f func() T,
-) T {
+) (ret T) {
 	if cond {
-		if t == nil {
-			return empty[T]()
+		if t != nil {
+			ret = t()
 		}
-		return t()
+		return
 	}
-	if f == nil {
-		return empty[T]()
+	if f != nil {
+		ret = f()
 	}
-	return f()
+	return
 }
