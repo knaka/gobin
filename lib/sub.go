@@ -1,5 +1,6 @@
 package lib
 
+// Do not use 3rd party packages because this file is used to generate standalone go program files.
 import (
 	"encoding/json"
 	"fmt"

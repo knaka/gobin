@@ -99,7 +99,7 @@ func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error
 	return ver, nil
 }
 
-func ensureInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
+func ensurePackageInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
 	defer Catch(&err)
 	name := path.Base(pkgWoVer)
 	resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
@@ -131,15 +131,18 @@ var rePackage = sync.OnceValue(func() *regexp.Regexp {
 	)
 })
 
+// isPackage checks if a string is a package name.
 func isPackage(s string) bool {
 	s = strings.TrimSpace(s)
 	return rePackage().MatchString(s)
 }
 
+// Run installs a binary and runs it
 func Run(args []string) (err error) {
 	return installEx(args, true)
 }
 
+// Install installs a binary.
 func Install(args []string) (err error) {
 	return installEx(args, false)
 }
@@ -155,7 +158,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 			continue
 		}
 		resolvedVer := V(resolveLatestVersion(pkgWoVer, gobin.ver))
-		V0(ensureInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
+		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
 		if !shouldRun {
 			return nil
 		}
@@ -176,7 +179,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 		pkgWoVer := divs[0]
 		ver := divs[1]
 		resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
-		V0(ensureInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
+		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
 		if !shouldRun {
 			return nil
 		}
@@ -189,12 +192,13 @@ func installEx(args []string, shouldRun bool) (err error) {
 	return fmt.Errorf("no matching command found")
 }
 
+// Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
 	gobinList, gobinPath := V2(getGobinList())
 	for _, gobin := range gobinList {
 		resolvedVer := V(resolveLatestVersion(gobin.pkgWoVer, gobin.ver))
-		V0(ensureInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))
+		V0(ensurePackageInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))
 	}
 	return nil
 }
