@@ -88,6 +88,13 @@ func ternaryF[T any](
 	return
 }
 
+type Gobin struct {
+	pkgWoVer  string
+	ver       string
+	buildOpts []string
+	comment   string
+}
+
 func getGobinList(dirPath string) (gobinList []Gobin, gobinPath string, err error) {
 	filePath, gobinPath, err := findGobinListFile(dirPath)
 	if err != nil {
@@ -176,7 +183,11 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	module := "github.com/knaka/gobin"
 	pkg := module + ""
 	name := filepath.Base(pkg)
-	gobinList, gobinPath, err := getGobinList(".")
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	gobinList, gobinPath, err := getGobinList(wd)
 	if err != nil {
 		return "", err
 	}
@@ -208,6 +219,7 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 		return "", err
 	}
 	cmd := exec.Command("go", "install", pkgVer)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
 	err = cmd.Run()
 	if err != nil {
 		return "", err

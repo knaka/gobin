@@ -16,13 +16,6 @@ import (
 	. "github.com/knaka/go-utils"
 )
 
-type Gobin struct {
-	pkgWoVer  string
-	ver       string
-	buildOpts []string
-	comment   string
-}
-
 type GoListOutput struct {
 	Version string `json:"Version"`
 }
@@ -77,6 +70,7 @@ func ensurePackageInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string)
 		cmd := exec.Command(V(getGoCmdPath()), args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
 		V0(cmd.Run())
 		V0(os.Rename(namePath, baseVerPath))
 	}
@@ -110,7 +104,7 @@ func Install(args []string) (err error) {
 
 func installEx(args []string, shouldRun bool) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList("."))
+	gobinList, gobinPath := V2(getGobinList(V(os.Getwd())))
 	for _, gobin := range gobinList {
 		pkgWoVer := gobin.pkgWoVer
 		pkgBase := path.Base(pkgWoVer)
@@ -156,7 +150,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 // Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList("."))
+	gobinList, gobinPath := V2(getGobinList(V(os.Getwd())))
 	for _, gobin := range gobinList {
 		resolvedVer := V(resolveLatestVersion(gobin.pkgWoVer, gobin.ver))
 		V0(ensurePackageInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))
