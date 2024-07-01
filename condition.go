@@ -12,7 +12,7 @@ func Ternary[T any](
 	return f
 }
 
-// Ternary returns the result of the first function if cond is true, otherwise the result of the second function.
+// TernaryF returns the result of the first function if cond is true, otherwise the result of the second function.
 func TernaryF[T any](
 	cond bool,
 	t func() T,
@@ -22,10 +22,10 @@ func TernaryF[T any](
 		if t != nil {
 			ret = t()
 		}
-		return
-	}
-	if f != nil {
-		ret = f()
+	} else {
+		if f != nil {
+			ret = f()
+		}
 	}
 	return
 }
