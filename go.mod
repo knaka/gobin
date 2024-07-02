@@ -3,7 +3,7 @@ module github.com/knaka/gobin
 go 1.20
 
 require (
-	github.com/knaka/go-utils v0.0.2024070104
+	github.com/knaka/go-utils v0.0.2024070250
 	github.com/mattn/go-shellwords v1.0.12
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.18.0

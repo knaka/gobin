@@ -27,6 +27,10 @@ type GoListOutput struct {
 var logger = V(zap.NewDevelopment())
 var sugar = logger.Sugar()
 
+var reBuildOptsSeparator = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`\s+`)
+})
+
 func getGobinList(dirPath string) (
 	gobinList GobinList,
 	gobinLock GobinList,
@@ -52,8 +56,9 @@ func getGobinList(dirPath string) (
 			if pkgVerTags == "" {
 				continue
 			}
-			comment := ternaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
-			divs = strings.SplitN(pkgVerTags, " ", 2)
+			//comment := ternaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
+			//divs = strings.SplitN(pkgVerTags, " ", 2)
+			divs = reBuildOptsSeparator().Split(pkgVerTags, 2)
 			pkgVer := divs[0]
 			optsStr := ternaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
 			opts := V(shellwords.Parse(optsStr))
@@ -61,10 +66,8 @@ func getGobinList(dirPath string) (
 			pkgWoVer := divs[0]
 			ver := ternaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
 			gobinList.Map[pkgWoVer] = Gobin{
-				Base:      path.Base(pkgWoVer),
 				Version:   ver,
 				BuildOpts: opts,
-				Comment:   comment,
 			}
 		}
 	}
@@ -157,6 +160,9 @@ func Run(args []string) (err error) {
 
 // Install installs a binary.
 func Install(args []string) (err error) {
+	if len(args) == 0 {
+		return Apply(args)
+	}
 	return installEx(args, false)
 }
 
@@ -236,7 +242,6 @@ func Apply(_ []string) (err error) {
 		}
 		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
 		gobinLock.Map[pkgWoVer] = Gobin{
-			Base:      gobin.Base,
 			Version:   resolvedVer,
 			BuildOpts: buildOpts,
 		}

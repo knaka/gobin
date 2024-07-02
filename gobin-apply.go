@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -86,10 +87,8 @@ func ternaryF[T any](
 }
 
 type Gobin struct {
-	Base      string   `json:"-"`
 	Version   string   `json:"version"`
 	BuildOpts []string `json:"build_opts"`
-	Comment   string   `json:"-"`
 }
 
 type GobinMap map[string]Gobin
@@ -113,7 +112,7 @@ func (l *GobinList) SaveJson() (err error) {
 
 func (m *GobinMap) Find(name string) (string, *Gobin) {
 	for pkgWoVer, gobin := range *m {
-		if pkgWoVer == name || gobin.Base == name {
+		if pkgWoVer == name || path.Base(pkgWoVer) == name {
 			return pkgWoVer, &gobin
 		}
 	}
@@ -200,25 +199,14 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	if err != nil {
 		return
 	}
-	gobinList, gobinLock, gobinPath, err := getGobinList(wd)
-	if err != nil {
-		return
-	}
+	_, _, gobinPath, err := findGobinFile(wd)
 	ver := "latest"
-	for pkgWoVer, gobin := range gobinList.Map {
-		if pkgWoVer == pkg {
-			ver = gobin.Version
-		}
-	}
 	moduleVer := fmt.Sprintf("%s@%s", module, ver)
 	pkgVer := fmt.Sprintf("%s@%s", pkg, ver)
 	nameVer := fmt.Sprintf("%s@%s", name, ver)
-	if _, err = os.Stat(filepath.Join(gobinPath, nameVer)); err == nil {
-		return filepath.Join(gobinPath, nameVer), err
-	}
-	lockInfo, ok := gobinLock.Map[pkg]
-	if ok {
-		ver = lockInfo.Version
+	cmdPath = filepath.Join(gobinPath, name)
+	if _, err = os.Stat(cmdPath); err == nil {
+		return
 	}
 	divs := strings.Split(ver, ".")
 	if len(divs) < 3 {
@@ -228,7 +216,8 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 		if errX != nil {
 			return "", errX
 		}
-		divs = strings.SplitN(string(cmdOutput), " ", 2)
+		cmdOutput2 := strings.TrimSpace(string(cmdOutput))
+		divs = strings.SplitN(cmdOutput2, " ", 2)
 		ver = divs[1]
 	}
 	if _, err = os.Stat(filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, ver))); err == nil {
@@ -249,7 +238,6 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 		return "", err
 
 	}
-	err = gobinLock.SaveJson()
 	if err != nil {
 		return
 	}
@@ -261,7 +249,15 @@ func gobinBoot(args []string) (err error) {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(cmdPath, args...)
+	cmd := exec.Command(cmdPath, "install", "github.com/knaka/gobin@latest")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	err = cmd.Run()
+	if err != nil {
+		return
+	}
+	cmd = exec.Command(cmdPath, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
