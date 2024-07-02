@@ -71,6 +71,7 @@ func getGobinList(dirPath string) (
 			}
 		}
 	}
+	// Add gobin itself@latest to the list if it is not listed.
 	if key, _ := gobinList.Map.Find("gobin"); key == "" {
 		gobinList.Map["github.com/knaka/gobin"] = Gobin{
 			Version: "latest",
