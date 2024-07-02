@@ -2,10 +2,8 @@ package lib
 
 // Do not use 3rd party packages because this file is used to generate standalone go program files.
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/mattn/go-shellwords"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +19,8 @@ var gobinListBases = []string{
 	".Gobinfile",
 }
 
+const gobinLockBase = ".Gobinfile-lock.json"
+
 // GoEnv is a struct to hold the output of `go env -json`.
 type GoEnv struct {
 	Version string `json:"GOVERSION"`
@@ -30,8 +30,8 @@ type GoEnv struct {
 
 var getGoCmdPath = sync.OnceValues(func() (goCmdPath string, err error) {
 	goCmdPath = filepath.Join(runtime.GOROOT(), "bin", "go")
-	if stat, err := os.Stat(goCmdPath); err == nil && !stat.IsDir() {
-		return goCmdPath, nil
+	if stat, errX := os.Stat(goCmdPath); errX != nil && !stat.IsDir() {
+		return
 	}
 	goCmdPath, err = exec.LookPath("go")
 	if err == nil {
@@ -87,96 +87,112 @@ func ternaryF[T any](
 }
 
 type Gobin struct {
-	pkgWoVer  string
+	base      string
 	ver       string
 	buildOpts []string
 	comment   string
 }
 
-// todo: gobinList should be a pkgWoVer → Gobin map?
-func getGobinList(dirPath string) (gobinList []Gobin, gobinPath string, err error) {
-	filePath, gobinPath, err := findGobinListFile(dirPath)
-	if err != nil {
-		return nil, "", err
-	}
-	if filePath == "" {
-		return gobinList, gobinPath, nil
-	}
-	reader, err := os.Open(filePath)
-	if err != nil {
-		return nil, "", nil
-	}
-	defer (func() { _ = reader.Close() })()
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		divs := strings.SplitN(line, "#", 2)
-		pkgVerTags := strings.TrimSpace(divs[0])
-		if pkgVerTags == "" {
-			continue
-		}
-		comment := ternaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
-		divs = strings.SplitN(pkgVerTags, " ", 2)
-		pkgVer := divs[0]
-		optsStr := ternaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
-		opts, err := shellwords.Parse(optsStr)
-		if err != nil {
-			return nil, "", err
-		}
-		divs = strings.SplitN(pkgVer, "@", 2)
-		pkgWoVer := divs[0]
-		ver := ternaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
-		gobinList = append(gobinList, Gobin{
-			pkgWoVer:  pkgWoVer,
-			ver:       ver,
-			buildOpts: opts,
-			comment:   comment,
-		})
-	}
-	return gobinList, gobinPath, nil
+type GobinMap map[string]Gobin
+
+type GobinList struct {
+	Path string
+	Map  GobinMap
 }
 
-func findGobinListFile(dirPath string) (gobinListPath string, gobinPath string, err error) {
-	for {
-		for _, gobinListBase := range gobinListBases {
-			pkgListPath := filepath.Join(dirPath, gobinListBase)
-			_, err = os.Stat(pkgListPath)
-			if err == nil {
-				return pkgListPath, filepath.Join(dirPath, gobinDirBase), nil
-			}
-			if !os.IsNotExist(err) {
-				return "", "", err
-			}
+func (l *GobinList) SaveJson() (err error) {
+	b, err := json.MarshalIndent(l.Map, "", "  ")
+	if err != nil {
+		return
+	}
+	err = os.WriteFile(l.Path, b, 0644)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (m *GobinMap) Find(name string) (string, *Gobin) {
+	for pkgWoVer, gobin := range *m {
+		if pkgWoVer == name || gobin.base == name {
+			return pkgWoVer, &gobin
 		}
-		parent := filepath.Dir(dirPath)
-		if parent == dirPath {
+	}
+	return "", nil
+}
+
+func findGobinFile(workingDirPath string) (
+	gobinListPath string,
+	gobinLockPath string,
+	gobinBinPath string,
+	err error,
+) {
+	homeDirPath := ""
+	homeDirPath, err = os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	gobinDirPath := ""
+	gobinListPath, gobinDirPath, err = findGobinFileSub(workingDirPath, homeDirPath)
+	gobinLockPath = filepath.Join(gobinDirPath, gobinLockBase)
+	if gobinDirPath == homeDirPath {
+		gobinBinPath, err = getGlobalGobinPath()
+		if err != nil {
+			return
+		}
+	} else {
+		gobinBinPath = filepath.Join(gobinDirPath, gobinDirBase)
+	}
+	return
+}
+
+func findGobinFileSub(workingDirPath string, homeDirPath string) (
+	gobinListPath string,
+	gobinDirPath string,
+	err error,
+) {
+	if err != nil {
+		return
+	}
+	// Search for a project local gobin list file.
+	gobinDirPath = workingDirPath
+	for {
+		if gobinDirPath == homeDirPath {
 			break
 		}
-		dirPath = parent
+		for _, gobinListBase := range gobinListBases {
+			gobinListPath = filepath.Join(gobinDirPath, gobinListBase)
+			// Found a package local gobin list file.
+			if _, err = os.Stat(gobinListPath); err == nil {
+				return
+			}
+			if !os.IsNotExist(err) {
+				return
+			}
+		}
+		parentDirPath := filepath.Dir(gobinDirPath)
+		// Reached the root directory.
+		if parentDirPath == gobinDirPath {
+			break
+		}
+		gobinDirPath = parentDirPath
 	}
-	homeDirPath, err := os.UserHomeDir()
-	if err != nil {
-		return "", "", err
-	}
-	globalGobinPath, err := getGlobalGobinPath()
-	if err != nil {
-		return "", "", err
-	}
+	// Search for a gobin list file in the home directory.
+	gobinDirPath = homeDirPath
 	for _, gobinListBase := range gobinListBases {
-		pkgListPath := filepath.Join(homeDirPath, gobinListBase)
-		_, err = os.Stat(pkgListPath)
-		if err == nil {
-			return pkgListPath, globalGobinPath, nil
+		gobinListPath = filepath.Join(homeDirPath, gobinListBase)
+		// Found a gobin list file in the home directory.
+		if _, err = os.Stat(gobinListPath); err == nil {
+			return
 		}
 		if !os.IsNotExist(err) {
-			return "", "", err
+			return
 		}
 	}
-	return "", globalGobinPath, nil
+	// When no gobin list file is found, create a gobin list file in the home directory.
+	gobinDirPath = homeDirPath
+	gobinListPath = filepath.Join(gobinDirPath, gobinListBases[0])
+	return
 }
 
 // Bootstrap functions to be called from standalone main function.
@@ -189,13 +205,13 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	gobinList, gobinPath, err := getGobinList(wd)
+	gobinList, _, gobinPath, err := getGobinList(wd)
 	if err != nil {
 		return "", err
 	}
 	ver := "latest"
-	for _, gobin := range gobinList {
-		if gobin.pkgWoVer == pkg {
+	for pkgWoVer, gobin := range gobinList.Map {
+		if pkgWoVer == pkg {
 			ver = gobin.ver
 		}
 	}
@@ -239,7 +255,7 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	return filepath.Join(gobinPath, nameVer), nil
 }
 
-func gobin(args []string) (err error) {
+func gobinBoot(args []string) (err error) {
 	cmdPath, err := ensureGobinCmdInstalled()
 	if err != nil {
 		return err
@@ -256,13 +272,13 @@ func gobin(args []string) (err error) {
 }
 
 func apply(args []string) (err error) {
-	return gobin(append([]string{"apply"}, args...))
+	return gobinBoot(append([]string{"apply"}, args...))
 }
 
 func install(args []string) (err error) {
-	return gobin(append([]string{"install"}, args...))
+	return gobinBoot(append([]string{"install"}, args...))
 }
 
 func run(args []string) (err error) {
-	return gobin(append([]string{"run"}, args...))
+	return gobinBoot(append([]string{"run"}, args...))
 }

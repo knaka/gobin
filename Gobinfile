@@ -1,2 +1,0 @@
-github.com/knaka/gobin@v0.0.2024070109 # knaka/gobin: Caches binaries when running a specified "main" package or local, non-module-aware `.go` files, thereby speeding up subsequent launches. https://github.com/knaka/gobin
-golang.org/x/tools/cmd/stringer@v0.15.0

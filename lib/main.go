@@ -1,9 +1,13 @@
 package lib
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/mattn/go-shellwords"
 	"go.uber.org/zap"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -23,10 +27,56 @@ type GoListOutput struct {
 var logger = V(zap.NewDevelopment())
 var sugar = logger.Sugar()
 
-var goVersion = sync.OnceValues(func() (goVersion string, err error) {
+func getGobinList(dirPath string) (
+	gobinList GobinList,
+	gobinLock GobinList,
+	gobinBinPath string,
+	err error,
+) {
 	defer Catch(&err)
-	return V(getGoEnv()).Version, nil
-})
+	gobinListPath, gobinLockPath, gobinBinPath := V3(findGobinFile(dirPath))
+	if stat, err := os.Stat(gobinListPath); err == nil && !stat.IsDir() {
+		reader := V(os.Create(gobinListPath))
+		defer (func() { V0(reader.Close()) })()
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			line := scanner.Text()
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			divs := strings.SplitN(line, "#", 2)
+			pkgVerTags := strings.TrimSpace(divs[0])
+			if pkgVerTags == "" {
+				continue
+			}
+			comment := ternaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
+			divs = strings.SplitN(pkgVerTags, " ", 2)
+			pkgVer := divs[0]
+			optsStr := ternaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
+			opts := V(shellwords.Parse(optsStr))
+			divs = strings.SplitN(pkgVer, "@", 2)
+			pkgWoVer := divs[0]
+			ver := ternaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
+			gobinList.Map[pkgWoVer] = Gobin{
+				base:      path.Base(pkgWoVer),
+				ver:       ver,
+				buildOpts: opts,
+				comment:   comment,
+			}
+		}
+	}
+	if stat, err := os.Stat(gobinLockPath); err == nil && !stat.IsDir() {
+		reader := V(os.Open(gobinLockPath))
+		defer (func() { V0(reader.Close()) })()
+		body := string(V(io.ReadAll(reader)))
+		if string(body) == "" {
+			body = "{}\n"
+		}
+		V0(json.Unmarshal([]byte(body), &gobinLock))
+	}
+	return
+}
 
 func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error) {
 	// Todo: Should resolve if ver is “latest” or not a “full” semantic version?
@@ -55,13 +105,13 @@ func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error
 	return ver, nil
 }
 
-func ensurePackageInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
+func ensurePackageInstalled(gobinBinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
 	defer Catch(&err)
 	name := path.Base(pkgWoVer)
 	resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
-	namePath := filepath.Join(gobinPath, name)
+	namePath := filepath.Join(gobinBinPath, name)
 	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
-	baseVerPath := filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
+	baseVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
 	if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
 		sugar.Infof("Skipping %s@%s", pkgWoVer, resolvedVer)
 	} else {
@@ -72,9 +122,14 @@ func ensurePackageInstalled(gobinPath, pkgWoVer, ver string, buildOpts []string)
 		cmd := exec.Command(V(getGoCmdPath()), args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
 		V0(cmd.Run())
 		V0(os.Rename(namePath, baseVerPath))
+		//(*gobinLock)[pkgWoVer] = Gobin{
+		//	base:      name,
+		//	ver:       resolvedVer,
+		//	buildOpts: buildOpts,
+		//}
 	}
 	Ignore(os.Remove(namePath))
 	V0(os.Symlink(nameVer, namePath))
@@ -106,9 +161,11 @@ func Install(args []string) (err error) {
 
 func installEx(args []string, shouldRun bool) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList(V(os.Getwd())))
-	for _, gobin := range gobinList {
-		pkgWoVer := gobin.pkgWoVer
+
+	// Install the binary which is listed in the gobin list file.
+
+	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
+	for pkgWoVer, gobin := range gobinList.Map {
 		pkgBase := path.Base(pkgWoVer)
 		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.ver)
 		if !slices.Contains([]string{pkgWoVer, pkgBase, pkg}, args[0]) {
@@ -125,6 +182,11 @@ func installEx(args []string, shouldRun bool) (err error) {
 		V0(cmd.Run())
 		return nil
 	}
+
+	log.Println("Refer %v", gobinLock)
+
+	// Install the binary which is not listed in the gobin list file.
+
 	for i, arg := range args {
 		if !isPackage(arg) {
 			continue
@@ -146,16 +208,19 @@ func installEx(args []string, shouldRun bool) (err error) {
 		V0(cmd.Run())
 		return nil
 	}
+
+	// No matching command found.
+
 	return fmt.Errorf("no matching command found")
 }
 
 // Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
-	gobinList, gobinPath := V2(getGobinList(V(os.Getwd())))
-	for _, gobin := range gobinList {
-		resolvedVer := V(resolveLatestVersion(gobin.pkgWoVer, gobin.ver))
-		V0(ensurePackageInstalled(gobinPath, gobin.pkgWoVer, resolvedVer, gobin.buildOpts))
+	gobinList, _, gobinPath := V3(getGobinList(V(os.Getwd())))
+	for pkgWoVer, gobin := range gobinList.Map {
+		resolvedVer := V(resolveLatestVersion(pkgWoVer, gobin.ver))
+		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
 	}
 	return nil
 }
