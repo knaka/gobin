@@ -12,16 +12,11 @@ import (
 	"sync"
 )
 
-const gobinDirBase = ".gobin"
+const gobinListBase = "Gobinfile"
+const gobinLockBase = "Gobinfile-lock.json"
+const gobinLocalDirBase = ".gobin"
 
-var gobinListBases = []string{
-	"Gobinfile",
-	".Gobinfile",
-}
-
-const gobinLockBase = ".Gobinfile-lock.json"
-
-// GoEnv is a struct to hold the output of `go env -json`.
+// GoEnv is a struct to hold the output of `go env --json`.
 type GoEnv struct {
 	Version string `json:"GOVERSION"`
 	Gobin   string `json:"GOBIN"`
@@ -87,10 +82,10 @@ func ternaryF[T any](
 }
 
 type Gobin struct {
-	base      string
-	ver       string
-	buildOpts []string
-	comment   string
+	Base      string   `json:"-"`
+	Version   string   `json:"version"`
+	BuildOpts []string `json:"build_opts"`
+	Comment   string   `json:"-"`
 }
 
 type GobinMap map[string]Gobin
@@ -101,7 +96,7 @@ type GobinList struct {
 }
 
 func (l *GobinList) SaveJson() (err error) {
-	b, err := json.MarshalIndent(l.Map, "", "  ")
+	b, err := json.Marshal(l.Map)
 	if err != nil {
 		return
 	}
@@ -114,7 +109,7 @@ func (l *GobinList) SaveJson() (err error) {
 
 func (m *GobinMap) Find(name string) (string, *Gobin) {
 	for pkgWoVer, gobin := range *m {
-		if pkgWoVer == name || gobin.base == name {
+		if pkgWoVer == name || gobin.Base == name {
 			return pkgWoVer, &gobin
 		}
 	}
@@ -141,7 +136,7 @@ func findGobinFile(workingDirPath string) (
 			return
 		}
 	} else {
-		gobinBinPath = filepath.Join(gobinDirPath, gobinDirBase)
+		gobinBinPath = filepath.Join(gobinDirPath, gobinLocalDirBase)
 	}
 	return
 }
@@ -160,15 +155,13 @@ func findGobinFileSub(workingDirPath string, homeDirPath string) (
 		if gobinDirPath == homeDirPath {
 			break
 		}
-		for _, gobinListBase := range gobinListBases {
-			gobinListPath = filepath.Join(gobinDirPath, gobinListBase)
-			// Found a package local gobin list file.
-			if _, err = os.Stat(gobinListPath); err == nil {
-				return
-			}
-			if !os.IsNotExist(err) {
-				return
-			}
+		gobinListPath = filepath.Join(gobinDirPath, gobinListBase)
+		// Found a package local gobin list file.
+		if _, err = os.Stat(gobinListPath); err == nil {
+			return
+		}
+		if !os.IsNotExist(err) {
+			return
 		}
 		parentDirPath := filepath.Dir(gobinDirPath)
 		// Reached the root directory.
@@ -179,19 +172,17 @@ func findGobinFileSub(workingDirPath string, homeDirPath string) (
 	}
 	// Search for a gobin list file in the home directory.
 	gobinDirPath = homeDirPath
-	for _, gobinListBase := range gobinListBases {
-		gobinListPath = filepath.Join(homeDirPath, gobinListBase)
-		// Found a gobin list file in the home directory.
-		if _, err = os.Stat(gobinListPath); err == nil {
-			return
-		}
-		if !os.IsNotExist(err) {
-			return
-		}
+	gobinListPath = filepath.Join(homeDirPath, gobinListBase)
+	// Found a gobin list file in the home directory.
+	if _, err = os.Stat(gobinListPath); err == nil {
+		return
+	}
+	if !os.IsNotExist(err) {
+		return
 	}
 	// When no gobin list file is found, create a gobin list file in the home directory.
 	gobinDirPath = homeDirPath
-	gobinListPath = filepath.Join(gobinDirPath, gobinListBases[0])
+	gobinListPath = filepath.Join(gobinDirPath, gobinListBase)
 	return
 }
 
@@ -203,38 +194,40 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	name := filepath.Base(pkg)
 	wd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return
 	}
-	gobinList, _, gobinPath, err := getGobinList(wd)
+	gobinList, gobinLock, gobinPath, err := getGobinList(wd)
 	if err != nil {
-		return "", err
+		return
 	}
 	ver := "latest"
 	for pkgWoVer, gobin := range gobinList.Map {
 		if pkgWoVer == pkg {
-			ver = gobin.ver
+			ver = gobin.Version
 		}
 	}
 	moduleVer := fmt.Sprintf("%s@%s", module, ver)
 	pkgVer := fmt.Sprintf("%s@%s", pkg, ver)
 	nameVer := fmt.Sprintf("%s@%s", name, ver)
-	// Check if the binary of any version is already installed.
 	if _, err = os.Stat(filepath.Join(gobinPath, nameVer)); err == nil {
 		return filepath.Join(gobinPath, nameVer), err
 	}
-	resolvedVer := ver
-	// Todo: Should resolve if ver is “latest” or not a “full” semantic version?
-	if resolvedVer == "latest" {
+	lockInfo, ok := gobinLock.Map[pkg]
+	if ok {
+		ver = lockInfo.Version
+	}
+	divs := strings.Split(ver, ".")
+	if len(divs) < 3 {
 		cmd := exec.Command("go", "list", "-m", moduleVer)
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
-		cmdOutput, err := cmd.Output()
-		if err != nil {
-			return "", err
+		cmdOutput, errX := cmd.Output()
+		if errX != nil {
+			return "", errX
 		}
-		divs := strings.SplitN(string(cmdOutput), " ", 2)
-		resolvedVer = divs[1]
+		divs = strings.SplitN(string(cmdOutput), " ", 2)
+		ver = divs[1]
 	}
-	if _, err = os.Stat(filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, resolvedVer))); err == nil {
+	if _, err = os.Stat(filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, ver))); err == nil {
 		return "", err
 	}
 	cmd := exec.Command("go", "install", pkgVer)
@@ -243,14 +236,18 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	err = os.Rename(filepath.Join(gobinPath, name), filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, resolvedVer)))
+	err = os.Rename(filepath.Join(gobinPath, name), filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, ver)))
 	if err != nil {
 		return "", err
 	}
-	err = os.Symlink(fmt.Sprintf("%s@%s", name, resolvedVer), filepath.Join(gobinPath, name))
+	err = os.Symlink(fmt.Sprintf("%s@%s", name, ver), filepath.Join(gobinPath, name))
 	if err != nil {
 		return "", err
 
+	}
+	err = gobinLock.SaveJson()
+	if err != nil {
+		return
 	}
 	return filepath.Join(gobinPath, nameVer), nil
 }
@@ -271,14 +268,17 @@ func gobinBoot(args []string) (err error) {
 	return nil
 }
 
+//goland:noinspection GoUnusedFunction
 func apply(args []string) (err error) {
 	return gobinBoot(append([]string{"apply"}, args...))
 }
 
+//goland:noinspection GoUnusedFunction
 func install(args []string) (err error) {
 	return gobinBoot(append([]string{"install"}, args...))
 }
 
+//goland:noinspection GoUnusedFunction
 func run(args []string) (err error) {
 	return gobinBoot(append([]string{"run"}, args...))
 }

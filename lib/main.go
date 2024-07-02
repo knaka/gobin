@@ -35,8 +35,10 @@ func getGobinList(dirPath string) (
 ) {
 	defer Catch(&err)
 	gobinListPath, gobinLockPath, gobinBinPath := V3(findGobinFile(dirPath))
+	gobinList.Path = gobinListPath
+	gobinList.Map = make(GobinMap)
 	if stat, err := os.Stat(gobinListPath); err == nil && !stat.IsDir() {
-		reader := V(os.Create(gobinListPath))
+		reader := V(os.Open(gobinListPath))
 		defer (func() { V0(reader.Close()) })()
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
@@ -59,13 +61,15 @@ func getGobinList(dirPath string) (
 			pkgWoVer := divs[0]
 			ver := ternaryF(len(divs) >= 2, func() string { return divs[1] }, func() string { return "latest" })
 			gobinList.Map[pkgWoVer] = Gobin{
-				base:      path.Base(pkgWoVer),
-				ver:       ver,
-				buildOpts: opts,
-				comment:   comment,
+				Base:      path.Base(pkgWoVer),
+				Version:   ver,
+				BuildOpts: opts,
+				Comment:   comment,
 			}
 		}
 	}
+	gobinLock.Path = gobinLockPath
+	gobinLock.Map = make(GobinMap)
 	if stat, err := os.Stat(gobinLockPath); err == nil && !stat.IsDir() {
 		reader := V(os.Open(gobinLockPath))
 		defer (func() { V0(reader.Close()) })()
@@ -73,17 +77,19 @@ func getGobinList(dirPath string) (
 		if string(body) == "" {
 			body = "{}\n"
 		}
-		V0(json.Unmarshal([]byte(body), &gobinLock))
+		V0(json.Unmarshal([]byte(body), &gobinLock.Map))
 	}
 	return
 }
 
-func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error) {
-	// Todo: Should resolve if ver is “latest” or not a “full” semantic version?
-	if ver != "latest" {
-		return ver, nil
+// resolveVersion resolves the version of a package. This function needs network connection.
+func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
+	divs := strings.Split(pkg, ".")
+	if ver != "latest" || len(divs) == 3 {
+		resolvedVer = ver
+		return
 	}
-	divs := strings.Split(pkg, "/")
+	divs = strings.Split(pkg, "/")
 	module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
 	divs = divs[3:]
 	for {
@@ -92,6 +98,7 @@ func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error
 		cmd.Stderr = os.Stderr
 		goListOutput := GoListOutput{}
 		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
+		sugar.Debugf("6a45931: %s", goListOutput.Version)
 		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
 			ver = goListOutput.Version
 			break
@@ -105,10 +112,9 @@ func resolveLatestVersion(pkg string, ver string) (resolvedVer string, err error
 	return ver, nil
 }
 
-func ensurePackageInstalled(gobinBinPath, pkgWoVer, ver string, buildOpts []string) (err error) {
+func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpts []string) (err error) {
 	defer Catch(&err)
 	name := path.Base(pkgWoVer)
-	resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
 	namePath := filepath.Join(gobinBinPath, name)
 	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
 	baseVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
@@ -125,11 +131,6 @@ func ensurePackageInstalled(gobinBinPath, pkgWoVer, ver string, buildOpts []stri
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
 		V0(cmd.Run())
 		V0(os.Rename(namePath, baseVerPath))
-		//(*gobinLock)[pkgWoVer] = Gobin{
-		//	base:      name,
-		//	ver:       resolvedVer,
-		//	buildOpts: buildOpts,
-		//}
 	}
 	Ignore(os.Remove(namePath))
 	V0(os.Symlink(nameVer, namePath))
@@ -167,12 +168,17 @@ func installEx(args []string, shouldRun bool) (err error) {
 	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {
 		pkgBase := path.Base(pkgWoVer)
-		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.ver)
+		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.Version)
 		if !slices.Contains([]string{pkgWoVer, pkgBase, pkg}, args[0]) {
 			continue
 		}
-		resolvedVer := V(resolveLatestVersion(pkgWoVer, gobin.ver))
-		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
+		lockInfo, ok := gobinLock.Map[pkgWoVer]
+		resolvedVer := TernaryF(ok,
+			func() string { return lockInfo.Version },
+			func() string { return V(resolveVersion(pkgWoVer, gobin.Version)) },
+		)
+		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.BuildOpts))
+		V0(gobinLock.SaveJson())
 		if !shouldRun {
 			return nil
 		}
@@ -197,7 +203,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 		divs := strings.Split(pkg, "@")
 		pkgWoVer := divs[0]
 		ver := divs[1]
-		resolvedVer := V(resolveLatestVersion(pkgWoVer, ver))
+		resolvedVer := V(resolveVersion(pkgWoVer, ver))
 		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
 		if !shouldRun {
 			return nil
@@ -217,10 +223,24 @@ func installEx(args []string, shouldRun bool) (err error) {
 // Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
-	gobinList, _, gobinPath := V3(getGobinList(V(os.Getwd())))
+	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {
-		resolvedVer := V(resolveLatestVersion(pkgWoVer, gobin.ver))
-		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.buildOpts))
+		var resolvedVer string
+		var buildOpts []string
+		if lockInfo, ok := gobinLock.Map[pkgWoVer]; ok {
+			resolvedVer = lockInfo.Version
+			buildOpts = lockInfo.BuildOpts
+		} else {
+			resolvedVer = V(resolveVersion(pkgWoVer, gobin.Version))
+			buildOpts = gobin.BuildOpts
+		}
+		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
+		gobinLock.Map[pkgWoVer] = Gobin{
+			Base:      gobin.Base,
+			Version:   resolvedVer,
+			BuildOpts: buildOpts,
+		}
 	}
+	V0(gobinLock.SaveJson())
 	return nil
 }
