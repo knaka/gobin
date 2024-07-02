@@ -248,7 +248,7 @@ func gobinBoot(args []string) (err error) {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(cmdPath, "install", "github.com/knaka/gobin@latest")
+	cmd := exec.Command(cmdPath, "install", "gobin")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

@@ -74,7 +74,8 @@ func getGobinList(dirPath string) (
 	// Add gobin itself@latest to the list if it is not listed.
 	if key, _ := gobinList.Map.Find("gobin"); key == "" {
 		gobinList.Map["github.com/knaka/gobin"] = Gobin{
-			Version: "latest",
+			Version:   "latest",
+			BuildOpts: []string{},
 		}
 	}
 	gobinLock.Path = gobinLockPath
@@ -190,6 +191,10 @@ func installEx(args []string, shouldRun bool) (err error) {
 			func() string { return V(resolveVersion(pkgWoVer, gobin.Version)) },
 		)
 		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.BuildOpts))
+		gobinLock.Map[pkgWoVer] = Gobin{
+			Version:   resolvedVer,
+			BuildOpts: gobin.BuildOpts,
+		}
 		V0(gobinLock.SaveJson())
 		if !shouldRun {
 			return nil
