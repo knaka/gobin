@@ -28,6 +28,14 @@ $
 
 You can use commands in Go generate without installing them globally in `$GOBIN` as follows:
 
+```console
+$ curl https://raw.githubusercontent.com/knaka/gobin/main/gobin-run.go -o gobin-run.go
+$ echo golang.org/x/tools/cmd/stringer@v0.11 >> Gobinfile
+$ echo github.com/sqlc-dev/sqlc/cmd/sqlc@latest >> Gobinfile
+```
+
+then, add the following to the source code:
+
 ```go
 package foo
 
