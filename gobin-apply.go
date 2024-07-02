@@ -201,16 +201,13 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 	}
 	_, _, gobinPath, err := findGobinFile(wd)
 	ver := "latest"
-	moduleVer := fmt.Sprintf("%s@%s", module, ver)
-	pkgVer := fmt.Sprintf("%s@%s", pkg, ver)
-	nameVer := fmt.Sprintf("%s@%s", name, ver)
 	cmdPath = filepath.Join(gobinPath, name)
 	if _, err = os.Stat(cmdPath); err == nil {
 		return
 	}
 	divs := strings.Split(ver, ".")
 	if len(divs) < 3 {
-		cmd := exec.Command("go", "list", "-m", moduleVer)
+		cmd := exec.Command("go", "list", "-m", fmt.Sprintf("%s@%s", pkg, ver))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmdOutput, errX := cmd.Output()
 		if errX != nil {
@@ -220,6 +217,8 @@ func ensureGobinCmdInstalled() (cmdPath string, err error) {
 		divs = strings.SplitN(cmdOutput2, " ", 2)
 		ver = divs[1]
 	}
+	pkgVer := fmt.Sprintf("%s@%s", pkg, ver)
+	nameVer := fmt.Sprintf("%s@%s", name, ver)
 	if _, err = os.Stat(filepath.Join(gobinPath, fmt.Sprintf("%s@%s", name, ver))); err == nil {
 		return "", err
 	}

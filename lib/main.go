@@ -71,6 +71,11 @@ func getGobinList(dirPath string) (
 			}
 		}
 	}
+	if key, _ := gobinList.Map.Find("gobin"); key == "" {
+		gobinList.Map["github.com/knaka/gobin"] = Gobin{
+			Version: "latest",
+		}
+	}
 	gobinLock.Path = gobinLockPath
 	gobinLock.Map = make(GobinMap)
 	if stat, err := os.Stat(gobinLockPath); err == nil && !stat.IsDir() {
