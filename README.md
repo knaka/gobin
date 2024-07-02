@@ -57,3 +57,11 @@ package foo
 //go:generate_output ./sqlcgen/models.go
 //go:generate sqlc generate
 ```
+
+## Usage as library
+
+You can use `gobin` as a library mainly in task-runner written in Go.
+
+```go
+TBD
+```
