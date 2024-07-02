@@ -1,1 +1,2 @@
 golang.org/x/tools/cmd/goyacc@latest # YACC 欲しい
+github.com/hairyhenderson/gomplate/v4/cmd/gomplate@latest
