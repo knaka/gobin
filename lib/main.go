@@ -24,8 +24,8 @@ type GoListOutput struct {
 	Version string `json:"Version"`
 }
 
-var logger = V(zap.NewDevelopment())
-var sugar = logger.Sugar()
+var logger *zap.Logger
+var sugar *zap.SugaredLogger
 
 var reBuildOptsSeparator = sync.OnceValue(func() *regexp.Regexp {
 	return regexp.MustCompile(`\s+`)
@@ -129,7 +129,7 @@ func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpt
 	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
 	baseVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
 	if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
-		sugar.Infof("Skipping %s@%s", pkgWoVer, resolvedVer)
+		sugar.Debugf("Skipping %s@%s", pkgWoVer, resolvedVer)
 	} else {
 		args := []string{"install"}
 		args = append(args, buildOpts...)
@@ -161,20 +161,30 @@ func isPackage(s string) bool {
 }
 
 // Run installs a binary and runs it
-func Run(args []string) (err error) {
-	return installEx(args, true)
+func Run(args []string, verbose bool) (err error) {
+	return installEx(args, true, verbose)
 }
 
 // Install installs a binary.
-func Install(args []string) (err error) {
+func Install(args []string, verbose bool) (err error) {
 	if len(args) == 0 {
-		return Apply(args)
+		return Apply(args, verbose)
 	}
-	return installEx(args, false)
+	return installEx(args, false, verbose)
 }
 
-func installEx(args []string, shouldRun bool) (err error) {
+func installEx(args []string, shouldRun bool, verbose bool) (err error) {
 	defer Catch(&err)
+
+	if verbose {
+		logger = V(zap.NewDevelopment())
+		sugar = logger.Sugar()
+		sugar.Debugf("Verbose mode")
+	} else {
+		logger = V(zap.NewProduction())
+		sugar = logger.Sugar()
+		sugar.Debugf("Production mode")
+	}
 
 	// Install the binary which is listed in the gobin list file.
 
@@ -238,8 +248,17 @@ func installEx(args []string, shouldRun bool) (err error) {
 }
 
 // Apply installs all the binaries listed in a gobin list file.
-func Apply(_ []string) (err error) {
+func Apply(_ []string, verbose bool) (err error) {
 	defer Catch(&err)
+
+	if verbose {
+		logger = V(zap.NewDevelopment())
+		sugar = logger.Sugar()
+	} else {
+		logger = V(zap.NewProduction())
+		sugar = logger.Sugar()
+	}
+
 	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {
 		var resolvedVer string
