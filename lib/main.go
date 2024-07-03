@@ -7,7 +7,6 @@ import (
 	"github.com/mattn/go-shellwords"
 	"go.uber.org/zap"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -24,8 +23,19 @@ type GoListOutput struct {
 	Version string `json:"Version"`
 }
 
-var logger *zap.Logger
-var sugar *zap.SugaredLogger
+var logger *zap.SugaredLogger
+
+func init() {
+	config := zap.NewDevelopmentConfig()
+	config.Level.SetLevel(zap.InfoLevel)
+	logger = V(config.Build()).Sugar()
+}
+
+func SetVerbose() {
+	config := zap.NewDevelopmentConfig()
+	config.Level.SetLevel(zap.DebugLevel)
+	logger = V(config.Build()).Sugar()
+}
 
 var reBuildOptsSeparator = sync.OnceValue(func() *regexp.Regexp {
 	return regexp.MustCompile(`\s+`)
@@ -108,7 +118,7 @@ func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
 		cmd.Stderr = os.Stderr
 		goListOutput := GoListOutput{}
 		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
-		sugar.Debugf("6a45931: %s", goListOutput.Version)
+		logger.Debugf("6a45931: %s", goListOutput.Version)
 		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
 			ver = goListOutput.Version
 			break
@@ -129,18 +139,19 @@ func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpt
 	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
 	baseVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
 	if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
-		sugar.Debugf("Skipping %s@%s", pkgWoVer, resolvedVer)
+		V0(fmt.Fprintf(os.Stderr, "Skipping: %s@%s\n", pkgWoVer, resolvedVer))
 	} else {
 		args := []string{"install"}
 		args = append(args, buildOpts...)
 		args = append(args, fmt.Sprintf("%s@%s", pkgWoVer, resolvedVer))
-		sugar.Infof("go %+v", args)
+		logger.Debugf("go %+v", args)
 		cmd := exec.Command(V(getGoCmdPath()), args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
 		V0(cmd.Run())
 		V0(os.Rename(namePath, baseVerPath))
+		V0(fmt.Fprintf(os.Stderr, "Installed: %s@%s\n", pkgWoVer, resolvedVer))
 	}
 	Ignore(os.Remove(namePath))
 	V0(os.Symlink(nameVer, namePath))
@@ -161,37 +172,29 @@ func isPackage(s string) bool {
 }
 
 // Run installs a binary and runs it
-func Run(args []string, verbose bool) (err error) {
-	return installEx(args, true, verbose)
+func Run(args []string) (err error) {
+	return installEx(args, true)
 }
 
 // Install installs a binary.
-func Install(args []string, verbose bool) (err error) {
+func Install(args []string) (err error) {
 	if len(args) == 0 {
-		return Apply(args, verbose)
+		return Apply(args)
 	}
-	return installEx(args, false, verbose)
+	return installEx(args, false)
 }
 
-func installEx(args []string, shouldRun bool, verbose bool) (err error) {
+func installEx(args []string, shouldRun bool) (err error) {
 	defer Catch(&err)
-
-	if verbose {
-		logger = V(zap.NewDevelopment())
-		sugar = logger.Sugar()
-		sugar.Debugf("Verbose mode")
-	} else {
-		logger = V(zap.NewProduction())
-		sugar = logger.Sugar()
-		sugar.Debugf("Production mode")
-	}
 
 	// Install the binary which is listed in the gobin list file.
 
 	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
+	logger.Infof("2cd3a91")
 	for pkgWoVer, gobin := range gobinList.Map {
 		pkgBase := path.Base(pkgWoVer)
 		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.Version)
+		logger.Debugf("pkgWoVer: %s, pkgBase: %s, pkg: %s, args[0]: %s", pkgWoVer, pkgBase, pkg, args[0])
 		if !slices.Contains([]string{pkgWoVer, pkgBase, pkg}, args[0]) {
 			continue
 		}
@@ -215,8 +218,6 @@ func installEx(args []string, shouldRun bool, verbose bool) (err error) {
 		V0(cmd.Run())
 		return nil
 	}
-
-	log.Println("Refer %v", gobinLock)
 
 	// Install the binary which is not listed in the gobin list file.
 
@@ -248,16 +249,8 @@ func installEx(args []string, shouldRun bool, verbose bool) (err error) {
 }
 
 // Apply installs all the binaries listed in a gobin list file.
-func Apply(_ []string, verbose bool) (err error) {
+func Apply(_ []string) (err error) {
 	defer Catch(&err)
-
-	if verbose {
-		logger = V(zap.NewDevelopment())
-		sugar = logger.Sugar()
-	} else {
-		logger = V(zap.NewProduction())
-		sugar = logger.Sugar()
-	}
 
 	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {

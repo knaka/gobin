@@ -1,56 +1,47 @@
 package main
 
 import (
-	. "github.com/knaka/go-utils"
+	"flag"
+	"fmt"
 	"github.com/knaka/gobin/lib"
-	"github.com/spf13/cobra"
 	"log"
+	"os"
+
+	. "github.com/knaka/go-utils"
 )
 
-var cmdRoot = &cobra.Command{
-	Use:   "gobin",
-	Short: "Installs the binaries to `~/go/bin` or project-local directories according to the versions specified in the package list file.",
-	Long:  "Installs the binaries to `~/go/bin` or project-local directories according to the versions specified in the package list file. It is useful for managing Go tools that are not installed globally in `$GOBIN` or `$GOPATH/bin`",
+func help() {
+	V0(fmt.Fprintf(os.Stderr, "gobin is a tool for managing Go binaries.\n"))
 }
 
 func Main() (err error) {
 	defer Catch(&err)
-	verbose := cmdRoot.PersistentFlags().BoolP("verbose", "v", false, "Verbose output")
-
-	subCmdRun := cobra.Command{
-		Use:   "run",
-		Short: "Run the specified binary",
-		Long: `Run the specified binary.
-
-The name of the binary to run is specified as an argument.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return lib.Run(args, *verbose)
-		},
+	verbose := flag.Bool("verbose", false, "Verbose output")
+	showHelp := flag.Bool("help", false, "Show help")
+	flag.Parse()
+	if *verbose {
+		lib.SetVerbose()
 	}
-	cmdRoot.AddCommand(&subCmdRun)
-
-	subCmdInstall := cobra.Command{
-		Use:   "install",
-		Short: "Install the specified binary, or all binaries if no argument is given",
-		Long: `Install the specified binary.
-
-If no argument is given, it installs all binaries specified in the package list file.`,
-		RunE: func(_ *cobra.Command, args []string) error { return lib.Install(args, *verbose) },
+	if *showHelp {
+		help()
+		return nil
 	}
-	cmdRoot.AddCommand(&subCmdInstall)
-
-	subCmdApply := cobra.Command{
-		Use:   "apply",
-		Short: "Apply the package list file to the environment",
-		Long: `Apply the package list file to the environment.
-
-It installs the binaries specified in the package list file.`,
-		RunE: func(_ *cobra.Command, args []string) error { return lib.Apply(args, *verbose) },
+	switch flag.Arg(0) {
+	case "run":
+		return lib.Run(flag.Args()[1:])
+	case "install":
+		return lib.Install(flag.Args()[1:])
+	case "apply":
+		return lib.Apply(flag.Args()[1:])
+	case "help":
+		help()
+		return nil
+	default:
+		V0(fmt.Errorf("unknown subcommand: %s", flag.Arg(0)))
+		help()
+		os.Exit(1)
 	}
-	cmdRoot.AddCommand(&subCmdApply)
-
-	V0(cmdRoot.Execute())
-	return nil
+	return
 }
 
 func main() {
