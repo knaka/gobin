@@ -120,8 +120,8 @@ func (m *GobinMap) Find(name string) (string, *Gobin) {
 }
 
 func findGobinFile(workingDirPath string) (
-	gobinListPath string,
-	gobinLockPath string,
+	gobinListPath string, // `Gobinfile`. This can not exist.
+	gobinLockPath string, // `Gobinfile-lock.json`. This can not exist.
 	gobinBinPath string,
 	err error,
 ) {

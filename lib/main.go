@@ -37,14 +37,14 @@ func SetVerbose() {
 	logger = V(config.Build()).Sugar()
 }
 
-var reBuildOptsSeparator = sync.OnceValue(func() *regexp.Regexp {
+var rePackageBuildOptsSeparator = sync.OnceValue(func() *regexp.Regexp {
 	return regexp.MustCompile(`\s+`)
 })
 
 func getGobinList(dirPath string) (
-	gobinList GobinList,
-	gobinLock GobinList,
-	gobinBinPath string,
+	gobinList GobinList, // Parsed `Gobinfile`
+	gobinLock GobinList, // Parsed `Gobinfile-lock.json`
+	gobinBinPath string, // ~/go/bin or local .gobin directory
 	err error,
 ) {
 	defer Catch(&err)
@@ -62,13 +62,12 @@ func getGobinList(dirPath string) (
 				continue
 			}
 			divs := strings.SplitN(line, "#", 2)
-			pkgVerTags := strings.TrimSpace(divs[0])
-			if pkgVerTags == "" {
+			pkgVerBuildOpts := strings.TrimSpace(divs[0])
+			if pkgVerBuildOpts == "" {
 				continue
 			}
 			//comment := ternaryF(len(divs) >= 2, func() string { return strings.TrimSpace(divs[1]) }, nil)
-			//divs = strings.SplitN(pkgVerTags, " ", 2)
-			divs = reBuildOptsSeparator().Split(pkgVerTags, 2)
+			divs = rePackageBuildOptsSeparator().Split(pkgVerBuildOpts, 2)
 			pkgVer := divs[0]
 			optsStr := ternaryF(len(divs) >= 2, func() string { return divs[1] }, nil)
 			opts := V(shellwords.Parse(optsStr))
@@ -95,7 +94,7 @@ func getGobinList(dirPath string) (
 		defer (func() { V0(reader.Close()) })()
 		body := string(V(io.ReadAll(reader)))
 		if string(body) == "" {
-			body = "{}\n"
+			body = "{}"
 		}
 		V0(json.Unmarshal([]byte(body), &gobinLock.Map))
 	}
@@ -104,23 +103,29 @@ func getGobinList(dirPath string) (
 
 // resolveVersion resolves the version of a package. This function needs network connection.
 func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
+	// Early return if the version is already resolved (i.e., fully qualified).
 	divs := strings.Split(pkg, ".")
 	if ver != "latest" || len(divs) == 3 {
 		resolvedVer = ver
 		return
 	}
 	divs = strings.Split(pkg, "/")
+	if len(divs) < 3 {
+		return "", fmt.Errorf("invalid package name: %s", pkg)
+	}
 	module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
 	divs = divs[3:]
 	for {
-		cmd := exec.Command(V(getGoCmdPath()), "list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver))
+		cmd := exec.Command(
+			V(getGoCmdPath()),
+			"list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver),
+		)
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmd.Stderr = os.Stderr
 		goListOutput := GoListOutput{}
 		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
-		logger.Debugf("6a45931: %s", goListOutput.Version)
 		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
-			ver = goListOutput.Version
+			resolvedVer = goListOutput.Version
 			break
 		}
 		if len(divs) == 0 {
@@ -129,35 +134,36 @@ func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
 		module = fmt.Sprintf("%s/%s", module, divs[0])
 		divs = divs[1:]
 	}
-	return ver, nil
+	return
 }
 
 func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpts []string) (err error) {
 	defer Catch(&err)
-	name := path.Base(pkgWoVer)
-	namePath := filepath.Join(gobinBinPath, name)
-	nameVer := fmt.Sprintf("%s@%s", name, resolvedVer)
-	baseVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", name, resolvedVer))
-	if stat, err := os.Stat(baseVerPath); err == nil && !stat.IsDir() {
+	cmd := path.Base(pkgWoVer)
+	cmdPath := filepath.Join(gobinBinPath, cmd)
+	cmdVer := fmt.Sprintf("%s@%s", cmd, resolvedVer)
+	cmdVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", cmd, resolvedVer))
+	if stat, err := os.Stat(cmdVerPath); err == nil && !stat.IsDir() {
 		V0(fmt.Fprintf(os.Stderr, "Skipping: %s@%s\n", pkgWoVer, resolvedVer))
 	} else {
 		args := []string{"install"}
 		args = append(args, buildOpts...)
 		args = append(args, fmt.Sprintf("%s@%s", pkgWoVer, resolvedVer))
-		logger.Debugf("go %+v", args)
-		cmd := exec.Command(V(getGoCmdPath()), args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
-		V0(cmd.Run())
-		V0(os.Rename(namePath, baseVerPath))
+		logger.Debugf("Installing: go %+v", args)
+		installCmd := exec.Command(V(getGoCmdPath()), args...)
+		installCmd.Stdout = os.Stdout
+		installCmd.Stderr = os.Stderr
+		installCmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
+		V0(installCmd.Run())
+		V0(os.Rename(cmdPath, cmdVerPath))
 		V0(fmt.Fprintf(os.Stderr, "Installed: %s@%s\n", pkgWoVer, resolvedVer))
 	}
-	Ignore(os.Remove(namePath))
-	V0(os.Symlink(nameVer, namePath))
+	Ignore(os.Remove(cmdPath))
+	V0(os.Symlink(cmdVer, cmdPath))
 	return nil
 }
 
+// rePackage is a regular expression to check if a string is a Go package name.
 var rePackage = sync.OnceValue(func() *regexp.Regexp {
 	return regexp.MustCompile(
 		// Are there a module with `{1,}` name?
@@ -167,11 +173,10 @@ var rePackage = sync.OnceValue(func() *regexp.Regexp {
 
 // isPackage checks if a string is a package name.
 func isPackage(s string) bool {
-	s = strings.TrimSpace(s)
-	return rePackage().MatchString(s)
+	return rePackage().MatchString(strings.TrimSpace(s))
 }
 
-// Run installs a binary and runs it
+// Run installs a binary and runs it.
 func Run(args []string) (err error) {
 	return installEx(args, true)
 }
@@ -189,8 +194,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 
 	// Install the binary which is listed in the gobin list file.
 
-	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
-	logger.Infof("2cd3a91")
+	gobinList, gobinLock, gobinBinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {
 		pkgBase := path.Base(pkgWoVer)
 		pkg := fmt.Sprintf("%s@%s", pkgWoVer, gobin.Version)
@@ -203,7 +207,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 			func() string { return lockInfo.Version },
 			func() string { return V(resolveVersion(pkgWoVer, gobin.Version)) },
 		)
-		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, gobin.BuildOpts))
+		V0(ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer, gobin.BuildOpts))
 		gobinLock.Map[pkgWoVer] = Gobin{
 			Version:   resolvedVer,
 			BuildOpts: gobin.BuildOpts,
@@ -212,7 +216,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 		if !shouldRun {
 			return nil
 		}
-		cmd := exec.Command(filepath.Join(gobinPath, pkgBase), args[1:]...)
+		cmd := exec.Command(filepath.Join(gobinBinPath, pkgBase), args[1:]...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		V0(cmd.Run())
@@ -232,11 +236,11 @@ func installEx(args []string, shouldRun bool) (err error) {
 		pkgWoVer := divs[0]
 		ver := divs[1]
 		resolvedVer := V(resolveVersion(pkgWoVer, ver))
-		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
+		V0(ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer, buildOpts))
 		if !shouldRun {
 			return nil
 		}
-		cmd := exec.Command(filepath.Join(gobinPath, path.Base(pkgWoVer)), cmdOpts...)
+		cmd := exec.Command(filepath.Join(gobinBinPath, path.Base(pkgWoVer)), cmdOpts...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		V0(cmd.Run())
@@ -251,8 +255,7 @@ func installEx(args []string, shouldRun bool) (err error) {
 // Apply installs all the binaries listed in a gobin list file.
 func Apply(_ []string) (err error) {
 	defer Catch(&err)
-
-	gobinList, gobinLock, gobinPath := V3(getGobinList(V(os.Getwd())))
+	gobinList, gobinLock, gobinBinPath := V3(getGobinList(V(os.Getwd())))
 	for pkgWoVer, gobin := range gobinList.Map {
 		var resolvedVer string
 		var buildOpts []string
@@ -263,7 +266,7 @@ func Apply(_ []string) (err error) {
 			resolvedVer = V(resolveVersion(pkgWoVer, gobin.Version))
 			buildOpts = gobin.BuildOpts
 		}
-		V0(ensurePackageInstalled(gobinPath, pkgWoVer, resolvedVer, buildOpts))
+		V0(ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer, buildOpts))
 		gobinLock.Map[pkgWoVer] = Gobin{
 			Version:   resolvedVer,
 			BuildOpts: buildOpts,

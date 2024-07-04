@@ -11,33 +11,42 @@ import (
 )
 
 func help() {
-	V0(fmt.Fprintf(os.Stderr, "gobin is a tool for managing Go binaries.\n"))
+	V0(fmt.Fprintf(os.Stderr, `gobin is a tool for managing Go binaries.
+
+Usage: gobin [options] <apply|install|run|help> [args]
+`))
 }
 
 func Main() (err error) {
 	defer Catch(&err)
 	verbose := flag.Bool("verbose", false, "Verbose output")
-	showHelp := flag.Bool("help", false, "Show help")
+	showsHelp := flag.Bool("help", false, "Show help")
 	flag.Parse()
 	if *verbose {
 		lib.SetVerbose()
 	}
-	if *showHelp {
+	if *showsHelp {
 		help()
 		return nil
 	}
-	switch flag.Arg(0) {
+	if flag.NArg() == 0 {
+		help()
+		os.Exit(1)
+	}
+	subCmd := flag.Arg(0)
+	subArgs := flag.Args()[1:]
+	switch subCmd {
 	case "run":
-		return lib.Run(flag.Args()[1:])
+		return lib.Run(subArgs)
 	case "install":
-		return lib.Install(flag.Args()[1:])
+		return lib.Install(subArgs)
 	case "apply":
-		return lib.Apply(flag.Args()[1:])
+		return lib.Apply(subArgs)
 	case "help":
 		help()
 		return nil
 	default:
-		V0(fmt.Errorf("unknown subcommand: %s", flag.Arg(0)))
+		V0(fmt.Errorf("unknown subcommand: %s", subCmd))
 		help()
 		os.Exit(1)
 	}
