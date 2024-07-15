@@ -1,10 +1,13 @@
 package utils
 
-func Catch(errRef *error) {
+func Catch(errRef *error, callbacks ...func(error)) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
 			if errRef != nil {
 				*errRef = err
+			}
+			for _, callback := range callbacks {
+				callback(err)
 			}
 		} else {
 			panic(r)
