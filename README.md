@@ -1,2 +1,3 @@
 # go-utils
-Go utils for internal use
+
+Go utils for internal use.

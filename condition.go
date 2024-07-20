@@ -29,3 +29,21 @@ func TernaryF[T any](
 	}
 	return
 }
+
+// TernaryF2 returns the result of the first function if cond is true, otherwise the result of the second function.
+func TernaryF2[T any, U any](
+	cond bool,
+	t func() (T, U),
+	f func() (T, U),
+) (ret1 T, ret2 U) {
+	if cond {
+		if t != nil {
+			ret1, ret2 = t()
+		}
+	} else {
+		if f != nil {
+			ret1, ret2 = f()
+		}
+	}
+	return
+}
