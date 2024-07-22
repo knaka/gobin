@@ -37,7 +37,7 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		return lib.Run(subArgs)
+		return lib.Run(subArgs...)
 	case "install":
 		return lib.Install(subArgs...)
 	case "apply":

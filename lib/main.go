@@ -177,8 +177,9 @@ func isPackage(s string) bool {
 }
 
 type InstallExParams struct {
-	Dir string
-	Env []string
+	Dir           string
+	Env           []string
+	WithGobinPath bool
 }
 
 type Opt func(params *InstallExParams) error
@@ -197,9 +198,20 @@ func WithEnv(env []string) Opt {
 	}
 }
 
-// Run installs a binary and runs it.
-func Run(args []string, opts ...Opt) (err error) {
+func WithGobinPath(f bool) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.WithGobinPath = f
+		return
+	}
+}
+
+// RunWith installs a binary and runs it.
+func RunWith(args []string, opts ...Opt) (err error) {
 	return installEx(args, true, opts...)
+}
+
+func Run(args ...string) (err error) {
+	return installEx(args, true)
 }
 
 // Install installs a binary.
@@ -250,6 +262,11 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 			func() string { return V(os.Getwd()) },
 		)
 		cmd.Env = append(os.Environ(), funcParams.Env...)
+		if funcParams.WithGobinPath {
+			// Prepend gobinBinPath to $PATH
+			// Does this work on Windows?
+			cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s%s%s", gobinBinPath, string(os.PathListSeparator), os.Getenv("PATH")))
+		}
 		V0(cmd.Run())
 		return nil
 	}
