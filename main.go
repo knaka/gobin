@@ -39,7 +39,7 @@ func Main() (err error) {
 	case "run":
 		return lib.Run(subArgs)
 	case "install":
-		return lib.Install(subArgs)
+		return lib.Install(subArgs...)
 	case "apply":
 		return lib.Apply(subArgs)
 	case "help":

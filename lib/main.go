@@ -176,21 +176,47 @@ func isPackage(s string) bool {
 	return rePackage().MatchString(strings.TrimSpace(s))
 }
 
+type InstallExParams struct {
+	Dir string
+	Env []string
+}
+
+type Opt func(params *InstallExParams) error
+
+func WithDir(dir string) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.Dir = dir
+		return
+	}
+}
+
+func WithEnv(env []string) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.Env = env
+		return
+	}
+}
+
 // Run installs a binary and runs it.
-func Run(args []string) (err error) {
-	return installEx(args, true)
+func Run(args []string, opts ...Opt) (err error) {
+	return installEx(args, true, opts...)
 }
 
 // Install installs a binary.
-func Install(args []string) (err error) {
+func Install(args ...string) (err error) {
 	if len(args) == 0 {
 		return Apply(args)
 	}
 	return installEx(args, false)
 }
 
-func installEx(args []string, shouldRun bool) (err error) {
+func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 	defer Catch(&err)
+
+	funcParams := InstallExParams{}
+	for _, opt := range opts {
+		V0(opt(&funcParams))
+	}
 
 	// Install the binary which is listed in the gobin list file.
 
@@ -219,6 +245,11 @@ func installEx(args []string, shouldRun bool) (err error) {
 		cmd := exec.Command(filepath.Join(gobinBinPath, pkgBase), args[1:]...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		cmd.Dir = TernaryF(funcParams.Dir != "",
+			func() string { return funcParams.Dir },
+			func() string { return V(os.Getwd()) },
+		)
+		cmd.Env = append(os.Environ(), funcParams.Env...)
 		V0(cmd.Run())
 		return nil
 	}
