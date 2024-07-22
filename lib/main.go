@@ -225,7 +225,9 @@ func Install(args ...string) (err error) {
 func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 	defer Catch(&err)
 
-	funcParams := InstallExParams{}
+	funcParams := InstallExParams{
+		WithGobinPath: true,
+	}
 	for _, opt := range opts {
 		V0(opt(&funcParams))
 	}
