@@ -214,12 +214,16 @@ func Run(args ...string) (err error) {
 	return installEx(args, true)
 }
 
-// Install installs a binary.
-func Install(args ...string) (err error) {
-	if len(args) == 0 {
-		return Apply(args)
+// Install installs binaries.
+func Install(cmds ...string) (err error) {
+	defer Catch(&err)
+	if len(cmds) == 0 {
+		return Apply(cmds)
 	}
-	return installEx(args, false)
+	for _, cmd := range cmds {
+		V0(installEx([]string{cmd}, false))
+	}
+	return
 }
 
 func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
