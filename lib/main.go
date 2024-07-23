@@ -101,6 +101,10 @@ func getGobinList(dirPath string) (
 	return
 }
 
+var reVerDiv = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`v[0-9]+`)
+})
+
 // resolveVersion resolves the version of a package. This function needs network connection.
 func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
 	// Early return if the version is already resolved (i.e., fully qualified).
@@ -113,9 +117,14 @@ func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
 	if len(divs) < 3 {
 		return "", fmt.Errorf("invalid package name: %s", pkg)
 	}
-	module := fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2])
-	divs = divs[3:]
-	for {
+	var modules []string
+	// Contains a major version suffix.
+	if len(divs) >= 4 && reVerDiv().MatchString(divs[3]) {
+		modules = append(modules, fmt.Sprintf("%s/%s/%s/%s", divs[0], divs[1], divs[2], divs[3]))
+	}
+	// Without it.
+	modules = append(modules, fmt.Sprintf("%s/%s/%s", divs[0], divs[1], divs[2]))
+	for _, module := range modules {
 		cmd := exec.Command(
 			V(getGoCmdPath()),
 			"list", "-m", "--json", fmt.Sprintf("%s@%s", module, ver),
@@ -123,18 +132,17 @@ func resolveVersion(pkg string, ver string) (resolvedVer string, err error) {
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmd.Stderr = os.Stderr
 		goListOutput := GoListOutput{}
-		V0(json.Unmarshal(V(cmd.Output()), &goListOutput))
-		if !strings.HasSuffix(goListOutput.Version, "+incompatible") {
-			resolvedVer = goListOutput.Version
-			break
+		output, err := cmd.Output()
+		if err != nil {
+			continue
 		}
-		if len(divs) == 0 {
-			return "", fmt.Errorf("no version found for %s", pkg)
+		V0(json.Unmarshal(output, &goListOutput))
+		if strings.HasSuffix(goListOutput.Version, "+incompatible") {
+			continue
 		}
-		module = fmt.Sprintf("%s/%s", module, divs[0])
-		divs = divs[1:]
+		return goListOutput.Version, nil
 	}
-	return
+	return "", fmt.Errorf("failed to resolve the version of %s", pkg)
 }
 
 func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpts []string) (err error) {
