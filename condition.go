@@ -47,3 +47,13 @@ func TernaryF2[T any, U any](
 	}
 	return
 }
+
+func Elvis[T comparable](
+	t T,
+	f T,
+) T {
+	if t != empty[T]() {
+		return t
+	}
+	return f
+}
