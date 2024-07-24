@@ -3,11 +3,12 @@ package utils
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 type S struct {
 	Foo string
-	Bar string
+	Bar time.Time
 }
 
 func TestElvis(t *testing.T) {
@@ -35,19 +36,19 @@ func TestElvis(t *testing.T) {
 			assert.Equalf(t, tt.want, Elvis(tt.args.t, tt.args.f), "Elvis(%v, %v)", tt.args.t, tt.args.f)
 		})
 	}
-	value := S{Foo: "a", Bar: "b"}
+	value := S{Foo: "a", Bar: time.Now()}
 	testsPointer := []testCase[*S]{
 		{
 			name: "Test Ptr1",
 			args: args[*S]{
 				t: &value,
-				f: &S{Foo: "c", Bar: "d"},
+				f: &S{Foo: "c", Bar: time.Time{}},
 			},
 			want: &value,
 		},
 	}
 	zeroValue := S{}
-	value2 := S{Foo: "c", Bar: "d"}
+	value2 := S{Foo: "c", Bar: V(time.Parse(time.RFC3339, "2021-01-01T00:00:00Z"))}
 	for _, tt := range testsPointer {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, Elvis(tt.args.t, tt.args.f), "Elvis(%v, %v)", tt.args.t, tt.args.f)
