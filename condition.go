@@ -1,11 +1,7 @@
 package utils
 
 // Ternary returns the first value if cond is true, otherwise the second value. // Ternary conditional operator - Wikipedia https://en.wikipedia.org/wiki/Ternary_conditional_operator
-func Ternary[T any](
-	cond bool,
-	t T,
-	f T,
-) T {
+func Ternary[T any](cond bool, t T, f T) T {
 	if cond {
 		return t
 	}
@@ -49,15 +45,9 @@ func TernaryF2[T any, U any](
 }
 
 // Elvis returns the first value if it is not empty, otherwise the second value. // Elvis operator - Wikipedia https://en.wikipedia.org/wiki/Elvis_operator
-func Elvis[T comparable](
-	t T,
-	f T,
-) T {
+func Elvis[T comparable](t T, f T) T {
 	var zero T
-	if t != zero {
-		return t
-	}
-	return f
+	return Ternary(t != zero, t, f)
 }
 
 // ElvisF returns the result of the first function if it is not empty, otherwise the result of the second function.
