@@ -48,6 +48,7 @@ func TernaryF2[T any, U any](
 	return
 }
 
+// Elvis returns the first value if it is not empty, otherwise the second value.
 func Elvis[T comparable](
 	t T,
 	f T,
@@ -56,4 +57,21 @@ func Elvis[T comparable](
 		return t
 	}
 	return f
+}
+
+// ElvisF returns the result of the first function if it is not empty, otherwise the result of the second function.
+func ElvisF[T comparable](
+	t func() T,
+	f func() T,
+) (ret T) {
+	if t != nil {
+		ret = t()
+		if ret != empty[T]() {
+			return
+		}
+	}
+	if f != nil {
+		ret = f()
+	}
+	return
 }
