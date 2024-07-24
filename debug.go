@@ -20,14 +20,14 @@ func Debugger() {
 		return
 	}
 	pid := os.Getpid()
-	_ = V(fmt.Fprintf(os.Stderr, "Process %d is waiting\n", pid))
+	V0(fmt.Fprintf(os.Stderr, "Process %d is waiting\n", pid))
 	for {
 		time.Sleep(duration)
 		if debuggerProcessExists(pid) {
 			break
 		}
 	}
-	_ = V(fmt.Fprintf(os.Stderr, "Debugger connected"))
+	V0(fmt.Fprintf(os.Stderr, "Debugger connected"))
 	time.Sleep(duration)
 }
 
