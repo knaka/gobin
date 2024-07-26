@@ -7,17 +7,18 @@ func Ok[T any](value T) (T, error) {
 	return value, nil
 }
 
-func empty[T any]() (t T) { return }
+// Nil returns a zero value.
+func Nil[T any]() (t T) { return }
 
 // Err returns a zero value and the given error.
 func Err[T any](err error) (T, error) {
-	return empty[T](), err
+	return Nil[T](), err
 }
 
 // Bind returns the result of the given function that can fail if err is nil, otherwise the error.
 func Bind[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), err
+		return Nil[T](), err
 	}
 	t, err := fn()
 	return t, TernaryF(err == nil,
@@ -41,7 +42,7 @@ func Bind0(err error, fn func() error) error {
 // Bind1 is an alias of Bind.
 func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 	if err != nil {
-		return empty[T](), err
+		return Nil[T](), err
 	}
 	t, err := fn()
 	return t, TernaryF(err == nil,
@@ -52,7 +53,7 @@ func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 
 func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 	if err != nil {
-		return empty[T](), empty[U](), err
+		return Nil[T](), Nil[U](), err
 	}
 	t, u, err := fn()
 	return t, u, TernaryF(err == nil,
@@ -76,7 +77,7 @@ func Then(err error, fn func() error) error {
 // Let returns the result of the given function if err is nil.
 func Let[T any](err error, fn func() T) T {
 	if err != nil {
-		return empty[T]()
+		return Nil[T]()
 	}
 	return fn()
 }
@@ -92,14 +93,14 @@ func Let0(err error, fn func()) {
 // Let1 is an alias of Let.
 func Let1[T any](err error, fn func() T) T {
 	if err != nil {
-		return empty[T]()
+		return Nil[T]()
 	}
 	return fn()
 }
 
 func Let2[T any, U any](err error, fn func() (T, U)) (T, U) {
 	if err != nil {
-		return empty[T](), empty[U]()
+		return Nil[T](), Nil[U]()
 	}
 	return fn()
 }

@@ -47,7 +47,6 @@ func TestElvis(t *testing.T) {
 			want: &value,
 		},
 	}
-	zeroValue := S{}
 	value2 := S{Foo: "c", Bar: V(time.Parse(time.RFC3339, "2021-01-01T00:00:00Z"))}
 	for _, tt := range testsPointer {
 		t.Run(tt.name, func(t *testing.T) {
@@ -66,7 +65,7 @@ func TestElvis(t *testing.T) {
 		{
 			name: "Test Val2",
 			args: args[S]{
-				t: zeroValue,
+				t: Nil[S](),
 				f: value2,
 			},
 			want: value2,
