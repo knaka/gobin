@@ -36,7 +36,7 @@ func (e *result[T]) NilIf(errs ...error) T {
 			return Nil[T]()
 		}
 	}
-	panic(wrapWithStack(e.Err))
+	panic(WithStack(e.Err))
 }
 
 func (e *result[T]) NilIfF(fn ...func(error) bool) T {
@@ -48,7 +48,7 @@ func (e *result[T]) NilIfF(fn ...func(error) bool) T {
 			return Nil[T]()
 		}
 	}
-	panic(wrapWithStack(e.Err))
+	panic(WithStack(e.Err))
 }
 
 func (e *result[T]) TrueIf(errs ...error) bool {
@@ -60,7 +60,7 @@ func (e *result[T]) TrueIf(errs ...error) bool {
 			return true
 		}
 	}
-	panic(wrapWithStack(e.Err))
+	panic(WithStack(e.Err))
 }
 
 func (e *result[T]) FalseIf(errs ...error) bool {

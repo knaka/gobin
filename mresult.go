@@ -23,7 +23,7 @@ func Bind[T any](err error, fn func() (T, error)) (T, error) {
 	t, err := fn()
 	return t, TernaryF(err == nil,
 		func() error { return nil },
-		func() error { return wrapWithStack(err) },
+		func() error { return WithStack(err) },
 	)
 }
 
@@ -35,7 +35,7 @@ func Bind0(err error, fn func() error) error {
 	err = fn()
 	return TernaryF(err == nil,
 		func() error { return nil },
-		func() error { return wrapWithStack(err) },
+		func() error { return WithStack(err) },
 	)
 }
 
@@ -47,7 +47,7 @@ func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 	t, err := fn()
 	return t, TernaryF(err == nil,
 		func() error { return nil },
-		func() error { return wrapWithStack(err) },
+		func() error { return WithStack(err) },
 	)
 }
 
@@ -58,7 +58,7 @@ func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 	t, u, err := fn()
 	return t, u, TernaryF(err == nil,
 		func() error { return nil },
-		func() error { return wrapWithStack(err) },
+		func() error { return WithStack(err) },
 	)
 }
 
@@ -70,7 +70,7 @@ func Then(err error, fn func() error) error {
 	err = fn()
 	return TernaryF(err == nil,
 		func() error { return nil },
-		func() error { return wrapWithStack(err) },
+		func() error { return WithStack(err) },
 	)
 }
 

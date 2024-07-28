@@ -1,15 +1,17 @@
 package utils
 
-func Catch(errRef *error, callbacks ...func(error)) {
+func Catch(errRef *error, fns ...func(error)) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
 			if errRef != nil {
 				*errRef = err
 			}
-			for _, callback := range callbacks {
-				callback(err)
+			// Call the callback functions to do something with the error.
+			for _, fn := range fns {
+				fn(err)
 			}
 		} else {
+			// “Re-throwing” panic does not lose the stack trace but stacks this call over the original. So you can trace to the original panic.
 			panic(r)
 		}
 	}

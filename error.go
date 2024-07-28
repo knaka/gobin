@@ -1,12 +1,23 @@
 package utils
 
-import "github.com/friendsofgo/errors"
+import (
+	"fmt"
+	"github.com/friendsofgo/errors"
+)
 
-func wrapWithStack(err error) error {
-	if _, ok := err.(interface{ Cause() error }); ok {
+type withStack struct {
+	errWithStack error
+}
+
+func (w *withStack) Unwrap() error { return w.errWithStack }
+func (w *withStack) Error() string { return fmt.Sprintf("%+v", w.errWithStack) }
+
+func WithStack(err error) error {
+	var _withStack *withStack
+	if errors.As(err, &_withStack) {
 		return err
 	}
-	return errors.Wrap(err, "wrapped with stack")
+	return &withStack{errWithStack: errors.WithStack(err)}
 }
 
 // V returns the value. If err is not nil, it panics.
@@ -14,7 +25,7 @@ func wrapWithStack(err error) error {
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func V[T any](value T, err error) T {
 	if err != nil {
-		panic(wrapWithStack(err))
+		panic(WithStack(err))
 	}
 	return value
 }
@@ -24,7 +35,7 @@ func V[T any](value T, err error) T {
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func V2[T any, U any](value1 T, value2 U, err error) (T, U) {
 	if err != nil {
-		panic(wrapWithStack(err))
+		panic(WithStack(err))
 	}
 	return value1, value2
 }
@@ -32,7 +43,7 @@ func V2[T any, U any](value1 T, value2 U, err error) (T, U) {
 // V3 returns three values. If err is not nil, it panics.
 func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) {
 	if err != nil {
-		panic(wrapWithStack(err))
+		panic(WithStack(err))
 	}
 	return value1, value2, value3
 }
@@ -43,11 +54,11 @@ func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) 
 func V0[T any](first T, rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
-			panic(wrapWithStack(err))
+			panic(WithStack(err))
 		}
 	}
 	if err, ok := any(first).(error); ok && err != nil {
-		panic(wrapWithStack(err))
+		panic(WithStack(err))
 	}
 }
 
