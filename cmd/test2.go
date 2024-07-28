@@ -33,11 +33,11 @@ func Main() (err error) {
 func main() {
 	//err := Bar()
 	err := Main()
-	Assert(errors.Is(err, io.EOF))
+	Assertf(errors.Is(err, io.EOF), "should be io.EOF: %v", err)
 	if err != nil {
-		log.Fatalf("%+v", err)
+		log.Fatalf("%v", err)
 	}
-	if err != nil {
-		panic(err)
-	}
+	//if err != nil {
+	//	panic(err)
+	//}
 }

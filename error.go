@@ -9,8 +9,11 @@ type withStack struct {
 	errWithStack error
 }
 
-func (w *withStack) Unwrap() error { return w.errWithStack }
+var _ error = (*withStack)(nil)
+var _ interface{ Unwrap() error } = (*withStack)(nil)
+
 func (w *withStack) Error() string { return fmt.Sprintf("%+v", w.errWithStack) }
+func (w *withStack) Unwrap() error { return w.errWithStack }
 
 func WithStack(err error) error {
 	var _withStack *withStack

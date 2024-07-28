@@ -1,28 +1,24 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
-	"github.com/friendsofgo/errors"
 )
 
-// A panics with the given message if the condition is false.
-func A(b bool, msgS ...string) {
+// Assertf panics with the given message if the condition is false.
+func Assertf(b bool, format string, a ...any) {
 	if b {
 		return
 	}
-	err := TernaryF(len(msgS) == 0,
-		func() error {
-			return errors.New("assertion failed")
-		},
-		func() (err error) {
-			err = errors.New(msgS[0])
-			for _, msg := range msgS[1:] {
-				err = fmt.Errorf("%s: %w", msg, err)
-			}
-			return err
-		},
-	)
-	panic(errors.Wrap(err, "wrapped with stack"))
+	panic(WithStack(errors.New(fmt.Sprintf(format, a...))))
 }
 
-var Assert = A
+func Assert(b bool, a ...any) {
+	if b {
+		return
+	}
+	panic(WithStack(errors.New(TernaryF(len(a) == 0,
+		func() string { return "assertion failed" },
+		func() string { return fmt.Sprint(a...) },
+	))))
+}
