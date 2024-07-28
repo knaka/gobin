@@ -2,14 +2,9 @@ package utils
 
 import "errors"
 
-// PR returns a pointer + error result context.
-//
-//goland:noinspection GoExportedFuncWithUnexportedType
-func PR[T any](value T, err error) *result[*T] {
-	return &result[*T]{
-		Value: &value,
-		Err:   err,
-	}
+type result[T any] struct {
+	Value T
+	Err   error
 }
 
 // R returns a value + error result context.
@@ -22,11 +17,17 @@ func R[T any](value T, err error) *result[T] {
 	}
 }
 
-type result[T any] struct {
-	Value T
-	Err   error
+// PR returns a pointer + error result context.
+//
+//goland:noinspection GoExportedFuncWithUnexportedType
+func PR[T any](value T, err error) *result[*T] {
+	return &result[*T]{
+		Value: &value,
+		Err:   err,
+	}
 }
 
+// NilIf returns nil if the error is one of the given errors and returns the value otherwise.
 func (e *result[T]) NilIf(errs ...error) T {
 	if e.Err == nil {
 		return e.Value

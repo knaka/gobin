@@ -27,28 +27,28 @@ func WithStack(err error) error {
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func V[T any](value T, err error) T {
-	if err != nil {
-		panic(WithStack(err))
+	if err == nil {
+		return value
 	}
-	return value
+	panic(WithStack(err))
 }
 
 // V2 returns two values. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func V2[T any, U any](value1 T, value2 U, err error) (T, U) {
-	if err != nil {
-		panic(WithStack(err))
+	if err == nil {
+		return value1, value2
 	}
-	return value1, value2
+	panic(WithStack(err))
 }
 
 // V3 returns three values. If err is not nil, it panics.
 func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) {
-	if err != nil {
-		panic(WithStack(err))
+	if err == nil {
+		return value1, value2, value3
 	}
-	return value1, value2, value3
+	panic(WithStack(err))
 }
 
 // V0 returns no value. If err is not nil, it panics.
@@ -63,6 +63,7 @@ func V0[T any](first T, rest ...any) {
 	if err, ok := any(first).(error); ok && err != nil {
 		panic(WithStack(err))
 	}
+	panic("no error argument passed")
 }
 
 // E returns the error.
