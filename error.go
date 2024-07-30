@@ -68,9 +68,6 @@ func V0[T any](first T, rest ...any) {
 
 // Expect expects the error to be nil or one of the errors passed as arguments.
 func Expect(err error, expectedErrors ...error) {
-	if err == nil {
-		return
-	}
 	for _, expectedError := range expectedErrors {
 		if errors.Is(err, expectedError) {
 			return

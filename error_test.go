@@ -19,8 +19,11 @@ func TestV(t *testing.T) {
 func TestExpect(t *testing.T) {
 	Expect((func() error {
 		return nil
-	})(), io.EOF)
+	})(), nil, io.EOF)
 	Expect((func() error {
 		return io.EOF
-	})(), io.EOF)
+	})(), nil, io.EOF)
+	//Expect((func() error {
+	//	return io.EOF
+	//})(), nil, io.ErrClosedPipe)
 }
