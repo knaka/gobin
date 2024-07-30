@@ -66,19 +66,20 @@ func V0[T any](first T, rest ...any) {
 	panic("no error argument passed")
 }
 
-// E returns the error.
-func E(rest ...any) error {
-	if len(rest) > 0 {
-		last := rest[len(rest)-1]
-		if last == nil {
-			return nil
-		}
-		if err, ok := last.(error); ok {
-			return err
+// Expect expects the error to be nil or one of the errors passed as arguments.
+func Expect(err error, expectedErrors ...error) {
+	if err == nil {
+		return
+	}
+	for _, expectedError := range expectedErrors {
+		if errors.Is(err, expectedError) {
+			return
 		}
 	}
-	panic("no error argument passed")
+	panic(WithStack(err))
 }
+
+var E = Expect
 
 // Ignore ignores an error explicitly.
 //

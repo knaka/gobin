@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/stretchr/testify/assert"
+	"io"
 	"strings"
 	"testing"
 )
@@ -13,4 +14,13 @@ func TestV(t *testing.T) {
 		n := V(reader.Read(bytes))
 		assert.True(t, n >= 0)
 	}
+}
+
+func TestExpect(t *testing.T) {
+	Expect((func() error {
+		return nil
+	})(), io.EOF)
+	Expect((func() error {
+		return io.EOF
+	})(), io.EOF)
 }

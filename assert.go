@@ -22,3 +22,5 @@ func Assert(b bool, a ...any) {
 		func() string { return fmt.Sprint(a...) },
 	))))
 }
+
+var A = Assert
