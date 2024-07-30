@@ -31,6 +31,7 @@ func Main() (err error) {
 }
 
 func main() {
+	V0((func() error { return nil })())
 	//err := Bar()
 	err := Main()
 	Assertf(errors.Is(err, io.EOF), "should be io.EOF: %v", err)
