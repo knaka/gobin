@@ -54,14 +54,11 @@ func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) 
 // V0 returns no value. If err is not nil, it panics.
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
-func V0[T any](first T, rest ...any) {
+func V0(rest ...any) {
 	if len(rest) > 0 {
 		if err, ok := (rest[len(rest)-1]).(error); ok && err != nil {
 			panic(WithStack(err))
 		}
-	}
-	if err, ok := any(first).(error); ok && err != nil {
-		panic(WithStack(err))
 	}
 	panic("no error argument passed")
 }
