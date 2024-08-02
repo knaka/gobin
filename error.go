@@ -58,15 +58,13 @@ func V0(args ...any) {
 	if len(args) == 0 {
 		panic("no argument passed")
 	}
-	if err, ok := (args[len(args)-1]).(error); !ok {
-		if args[len(args)-1] == nil {
-			return
-		}
-		panic("no error argument passed")
-	} else if err != nil {
+	if args[len(args)-1] == nil {
+		return
+	}
+	if err, ok := (args[len(args)-1]).(error); ok {
 		panic(WithStack(err))
 	}
-	return
+	panic("no error argument passed")
 }
 
 // Expect expects the error to be nil or one of the errors passed as arguments.
@@ -79,7 +77,19 @@ func Expect(err error, expectedErrors ...error) {
 	panic(WithStack(err))
 }
 
-var E = Expect
+// E returns error.
+func E(args ...any) error {
+	if len(args) == 0 {
+		panic("no argument passed")
+	}
+	if args[len(args)-1] == nil {
+		return nil
+	}
+	if err, ok := (args[len(args)-1]).(error); ok {
+		return err
+	}
+	panic("no error argument passed")
+}
 
 // Ignore ignores an error explicitly.
 //

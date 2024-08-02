@@ -2,7 +2,7 @@ package utils
 
 import "errors"
 
-type result[T any] struct {
+type valueResult[T any] struct {
 	Value T
 	Err   error
 }
@@ -10,8 +10,8 @@ type result[T any] struct {
 // R returns a value + error result context.
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func R[T any](value T, err error) *result[T] {
-	return &result[T]{
+func R[T any](value T, err error) *valueResult[T] {
+	return &valueResult[T]{
 		Value: value,
 		Err:   err,
 	}
@@ -20,15 +20,15 @@ func R[T any](value T, err error) *result[T] {
 // PR returns a pointer + error result context.
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func PR[T any](value T, err error) *result[*T] {
-	return &result[*T]{
+func PR[T any](value T, err error) *valueResult[*T] {
+	return &valueResult[*T]{
 		Value: &value,
 		Err:   err,
 	}
 }
 
 // NilIf returns nil if the error is one of the given errors and returns the value otherwise.
-func (e *result[T]) NilIf(errs ...error) T {
+func (e *valueResult[T]) NilIf(errs ...error) T {
 	if e.Err == nil {
 		return e.Value
 	}
@@ -40,7 +40,7 @@ func (e *result[T]) NilIf(errs ...error) T {
 	panic(WithStack(e.Err))
 }
 
-func (e *result[T]) NilIfF(fn ...func(error) bool) T {
+func (e *valueResult[T]) NilIfF(fn ...func(error) bool) T {
 	if e.Err == nil {
 		return e.Value
 	}
@@ -52,7 +52,7 @@ func (e *result[T]) NilIfF(fn ...func(error) bool) T {
 	panic(WithStack(e.Err))
 }
 
-func (e *result[T]) TrueIf(errs ...error) bool {
+func (e *valueResult[T]) TrueIf(errs ...error) bool {
 	if e.Err == nil {
 		return false
 	}
@@ -64,6 +64,6 @@ func (e *result[T]) TrueIf(errs ...error) bool {
 	panic(WithStack(e.Err))
 }
 
-func (e *result[T]) FalseIf(errs ...error) bool {
+func (e *valueResult[T]) FalseIf(errs ...error) bool {
 	return !e.TrueIf(errs...)
 }
