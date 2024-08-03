@@ -189,14 +189,14 @@ func isPackage(s string) bool {
 }
 
 type InstallExParams struct {
-	Dir           string
-	Env           []string
-	WithGobinPath bool
-
+	Dir             string
+	Env             []string
+	WithGobinPath   bool
 	shouldReturnCmd bool
 	stdin           io.Reader
 	stdout          io.Writer
 	stderr          io.Writer
+	verbose         bool
 }
 
 type Opt func(params *InstallExParams) error
@@ -204,6 +204,13 @@ type Opt func(params *InstallExParams) error
 func WithDir(dir string) Opt {
 	return func(params *InstallExParams) (err error) {
 		params.Dir = dir
+		return
+	}
+}
+
+func Verbose(f bool) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.verbose = f
 		return
 	}
 }
