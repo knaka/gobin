@@ -54,7 +54,7 @@ func Main() (err error) {
 }
 
 func main() {
-	WaitForDebugger()
+	Debugger()
 	if err := Main(); err != nil {
 		log.Fatalf("Error: %+v", err)
 	}

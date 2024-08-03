@@ -151,8 +151,12 @@ func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpt
 	cmdPath := filepath.Join(gobinBinPath, cmd)
 	cmdVer := fmt.Sprintf("%s@%s", cmd, resolvedVer)
 	cmdVerPath := filepath.Join(gobinBinPath, fmt.Sprintf("%s@%s", cmd, resolvedVer))
-	if stat, err := os.Stat(cmdVerPath); err == nil && !stat.IsDir() {
-		V0(fmt.Fprintf(os.Stderr, "Skipping: %s@%s\n", pkgWoVer, resolvedVer))
+	if stat, errSub := os.Stat(cmdVerPath); errSub == nil && !stat.IsDir() {
+		//V0(fmt.Fprintf(os.Stderr, "Skipping: %s@%s\n", pkgWoVer, resolvedVer))
+		target, errSub2 := os.Readlink(cmdPath)
+		if errSub2 == nil && target == cmdVer {
+			return
+		}
 	} else {
 		args := []string{"install"}
 		args = append(args, buildOpts...)
@@ -164,7 +168,7 @@ func ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer string, buildOpt
 		installCmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinBinPath))
 		V0(installCmd.Run())
 		V0(os.Rename(cmdPath, cmdVerPath))
-		V0(fmt.Fprintf(os.Stderr, "Installed: %s@%s\n", pkgWoVer, resolvedVer))
+		//V0(fmt.Fprintf(os.Stderr, "Installed: %s@%s\n", pkgWoVer, resolvedVer))
 	}
 	Ignore(os.Remove(cmdPath))
 	V0(os.Symlink(cmdVer, cmdPath))
@@ -188,6 +192,11 @@ type InstallExParams struct {
 	Dir           string
 	Env           []string
 	WithGobinPath bool
+
+	shouldReturnCmd bool
+	stdin           io.Reader
+	stdout          io.Writer
+	stderr          io.Writer
 }
 
 type Opt func(params *InstallExParams) error
@@ -213,13 +222,45 @@ func WithGobinPath(f bool) Opt {
 	}
 }
 
+func WithStdin(stdin io.Reader) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.stdin = stdin
+		return
+	}
+}
+
+func WithStdout(stdout io.Writer) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.stdout = stdout
+		return
+	}
+}
+
+func WithStderr(stderr io.Writer) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.stderr = stderr
+		return
+	}
+}
+
+func shouldReturnCmd(f bool) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.shouldReturnCmd = f
+		return
+	}
+}
+
 // RunWith installs a binary and runs it.
-func RunWith(args []string, opts ...Opt) (err error) {
-	return installEx(args, true, opts...)
+func RunEx(args []string, opts ...Opt) (err error) {
+	return E(installEx(args, true, opts...))
 }
 
 func Run(args ...string) (err error) {
-	return installEx(args, true)
+	return E(installEx(args, true))
+}
+
+func Command(args ...string) (cmd *exec.Cmd, err error) {
+	return installEx(args, false, shouldReturnCmd(true))
 }
 
 // Install installs binaries.
@@ -234,11 +275,14 @@ func Install(cmds ...string) (err error) {
 	return
 }
 
-func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
+func installEx(args []string, shouldRun bool, opts ...Opt) (cmd *exec.Cmd, err error) {
 	defer Catch(&err)
 
 	funcParams := InstallExParams{
 		WithGobinPath: true,
+		stdin:         os.Stdin,
+		stdout:        os.Stdout,
+		stderr:        os.Stderr,
 	}
 	for _, opt := range opts {
 		V0(opt(&funcParams))
@@ -265,12 +309,13 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 			BuildOpts: gobin.BuildOpts,
 		}
 		V0(gobinLock.SaveJson())
-		if !shouldRun {
-			return nil
+		if !shouldRun && !funcParams.shouldReturnCmd {
+			return
 		}
-		cmd := exec.Command(filepath.Join(gobinBinPath, pkgBase), args[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd = exec.Command(filepath.Join(gobinBinPath, pkgBase), args[1:]...)
+		cmd.Stdin = funcParams.stdin
+		cmd.Stdout = funcParams.stdout
+		cmd.Stderr = funcParams.stderr
 		cmd.Dir = TernaryF(funcParams.Dir != "",
 			func() string { return funcParams.Dir },
 			func() string { return V(os.Getwd()) },
@@ -281,11 +326,15 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 			// Does this work on Windows?
 			cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s%s%s", gobinBinPath, string(os.PathListSeparator), os.Getenv("PATH")))
 		}
+		if funcParams.shouldReturnCmd {
+			return
+		}
 		V0(cmd.Run())
-		return nil
+		return
 	}
 
 	// Install the binary which is not listed in the gobin list file.
+	// ... is the feature necessary?
 
 	for i, arg := range args {
 		if !isPackage(arg) {
@@ -299,19 +348,24 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (err error) {
 		ver := divs[1]
 		resolvedVer := V(resolveVersion(pkgWoVer, ver))
 		V0(ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer, buildOpts))
-		if !shouldRun {
-			return nil
+		if !shouldRun && !funcParams.shouldReturnCmd {
+			return
 		}
-		cmd := exec.Command(filepath.Join(gobinBinPath, path.Base(pkgWoVer)), cmdOpts...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd = exec.Command(filepath.Join(gobinBinPath, path.Base(pkgWoVer)), cmdOpts...)
+		cmd.Stdin = funcParams.stdin
+		cmd.Stdout = funcParams.stdout
+		cmd.Stderr = funcParams.stderr
+		if funcParams.shouldReturnCmd {
+			return
+		}
 		V0(cmd.Run())
-		return nil
+		return
 	}
 
 	// No matching command found.
 
-	return fmt.Errorf("no matching command found")
+	err = fmt.Errorf("no matching command found")
+	return
 }
 
 // Apply installs all the binaries listed in a gobin list file.
