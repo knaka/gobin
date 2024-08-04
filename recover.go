@@ -1,5 +1,9 @@
 package utils
 
+func Throw(err error) {
+	panic(WithStack(err))
+}
+
 func Catch(errRef *error, fns ...func(error)) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
