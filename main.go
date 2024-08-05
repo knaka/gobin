@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/knaka/gobin/lib"
-	"log"
+	"github.com/knaka/gobin/gobinlog"
+	stdlog "log"
 	"os"
 
 	. "github.com/knaka/go-utils"
@@ -19,13 +19,16 @@ Usage: gobin [options] <apply|install|run|help> [args]
 
 func Main() (err error) {
 	defer Catch(&err)
-	verbose := flag.Bool("verbose", false, "Verbose output")
-	showsHelp := flag.Bool("help", false, "Show help")
+	verbose := flag.Bool("v", false, "Verbose output")
+	shouldHelp := flag.Bool("h", false, "Show help")
+	//global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
 	if *verbose {
-		lib.SetVerbose()
+		log.SetOutput(os.Stderr)
 	}
-	if *showsHelp {
+	Debugger()
+	log.Println("???")
+	if *shouldHelp {
 		help()
 		return nil
 	}
@@ -34,14 +37,23 @@ func Main() (err error) {
 		os.Exit(1)
 	}
 	subCmd := flag.Arg(0)
-	subArgs := flag.Args()[1:]
+	//subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		return lib.Run(subArgs...)
-	case "install":
-		return lib.Install(subArgs...)
-	case "apply":
-		return lib.Apply(subArgs)
+		//cmd := V(lib.CommandEx(subArgs, lib.WithGlobal(*global)))
+		//err = cmd.Run()
+		//if err == nil {
+		//	os.Exit(0)
+		//}
+		//errExit := ErrorAs[*exec.ExitError](err)
+		//if errExit != nil {
+		//	os.Exit(errExit.ExitCode())
+		//}
+		//return err
+	//case "install":
+	//	return lib.Install(subArgs...)
+	//case "apply":
+	//	return lib.Apply(subArgs)
 	case "help":
 		help()
 		return nil
@@ -56,6 +68,6 @@ func Main() (err error) {
 func main() {
 	Debugger()
 	if err := Main(); err != nil {
-		log.Fatalf("Error: %+v", err)
+		stdlog.Fatalf("Error: %+v", err)
 	}
 }

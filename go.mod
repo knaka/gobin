@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.6
 
 require (
-	github.com/knaka/go-utils v0.0.2024080241
+	github.com/knaka/go-utils v0.0.2024080520
 	github.com/mattn/go-shellwords v1.0.12
 	go.uber.org/zap v1.27.0
 )

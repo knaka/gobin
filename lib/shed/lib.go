@@ -197,9 +197,17 @@ type InstallExParams struct {
 	stdout          io.Writer
 	stderr          io.Writer
 	verbose         bool
+	global          bool
 }
 
 type Opt func(params *InstallExParams) error
+
+func WithGlobal(f bool) Opt {
+	return func(params *InstallExParams) (err error) {
+		params.global = f
+		return
+	}
+}
 
 func WithDir(dir string) Opt {
 	return func(params *InstallExParams) (err error) {
@@ -270,6 +278,10 @@ func Command(args ...string) (cmd *exec.Cmd, err error) {
 	return installEx(args, false, shouldReturnCmd(true))
 }
 
+func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
+	return installEx(args, false, append(opts, shouldReturnCmd(true))...)
+}
+
 // Install installs binaries.
 func Install(cmds ...string) (err error) {
 	defer Catch(&err)
@@ -284,15 +296,14 @@ func Install(cmds ...string) (err error) {
 
 func installEx(args []string, shouldRun bool, opts ...Opt) (cmd *exec.Cmd, err error) {
 	defer Catch(&err)
-
-	funcParams := InstallExParams{
+	params := InstallExParams{
 		WithGobinPath: true,
 		stdin:         os.Stdin,
 		stdout:        os.Stdout,
 		stderr:        os.Stderr,
 	}
 	for _, opt := range opts {
-		V0(opt(&funcParams))
+		V0(opt(&params))
 	}
 
 	// Install the binary which is listed in the gobin list file.
@@ -316,24 +327,24 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (cmd *exec.Cmd, err e
 			BuildOpts: gobin.BuildOpts,
 		}
 		V0(gobinLock.SaveJson())
-		if !shouldRun && !funcParams.shouldReturnCmd {
+		if !shouldRun && !params.shouldReturnCmd {
 			return
 		}
 		cmd = exec.Command(filepath.Join(gobinBinPath, pkgBase), args[1:]...)
-		cmd.Stdin = funcParams.stdin
-		cmd.Stdout = funcParams.stdout
-		cmd.Stderr = funcParams.stderr
-		cmd.Dir = TernaryF(funcParams.Dir != "",
-			func() string { return funcParams.Dir },
+		cmd.Stdin = params.stdin
+		cmd.Stdout = params.stdout
+		cmd.Stderr = params.stderr
+		cmd.Dir = TernaryF(params.Dir != "",
+			func() string { return params.Dir },
 			func() string { return V(os.Getwd()) },
 		)
-		cmd.Env = append(os.Environ(), funcParams.Env...)
-		if funcParams.WithGobinPath {
+		cmd.Env = append(os.Environ(), params.Env...)
+		if params.WithGobinPath {
 			// Prepend gobinBinPath to $PATH
 			// Does this work on Windows?
 			cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s%s%s", gobinBinPath, string(os.PathListSeparator), os.Getenv("PATH")))
 		}
-		if funcParams.shouldReturnCmd {
+		if params.shouldReturnCmd {
 			return
 		}
 		V0(cmd.Run())
@@ -355,14 +366,14 @@ func installEx(args []string, shouldRun bool, opts ...Opt) (cmd *exec.Cmd, err e
 		ver := divs[1]
 		resolvedVer := V(resolveVersion(pkgWoVer, ver))
 		V0(ensurePackageInstalled(gobinBinPath, pkgWoVer, resolvedVer, buildOpts))
-		if !shouldRun && !funcParams.shouldReturnCmd {
+		if !shouldRun && !params.shouldReturnCmd {
 			return
 		}
 		cmd = exec.Command(filepath.Join(gobinBinPath, path.Base(pkgWoVer)), cmdOpts...)
-		cmd.Stdin = funcParams.stdin
-		cmd.Stdout = funcParams.stdout
-		cmd.Stderr = funcParams.stderr
-		if funcParams.shouldReturnCmd {
+		cmd.Stdin = params.stdin
+		cmd.Stdout = params.stdout
+		cmd.Stderr = params.stderr
+		if params.shouldReturnCmd {
 			return
 		}
 		V0(cmd.Run())
