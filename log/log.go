@@ -5,7 +5,6 @@ import (
 	stdlog "log"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 var logger *stdlog.Logger
@@ -17,12 +16,6 @@ func init() {
 }
 
 func Println(v ...interface{}) {
-	pc, _, _, _ := runtime.Caller(2)
-	x := runtime.FuncForPC(pc).Name()
-	println(x)
-	parts := strings.Split(x, ".")
-	println(parts)
-
 	logger.Println(v...)
 }
 
