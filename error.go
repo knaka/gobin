@@ -95,3 +95,11 @@ func E(args ...any) error {
 //
 //goland:noinspection GoUnusedParameter
 func Ignore[T any](T, ...any) {}
+
+// ErrorAs returns the error as the type T if possible, otherwise returns nil.
+func ErrorAs[T error](err error) (t T) {
+	if errors.As(err, &t) {
+		return
+	}
+	return t
+}
