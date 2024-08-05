@@ -4,6 +4,12 @@ func Throw(err error) {
 	panic(WithStack(err))
 }
 
+func ThrowIf(err error) {
+	if err != nil {
+		panic(WithStack(err))
+	}
+}
+
 func Catch(errRef *error, fns ...func(error)) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
