@@ -2,7 +2,7 @@ package gobin
 
 import (
 	"bufio"
-	"github.com/knaka/go-utils"
+	. "github.com/knaka/go-utils"
 	"github.com/knaka/gobin/minlib"
 	"os"
 	"path"
@@ -34,14 +34,14 @@ const maniLockBase = "Gobinfile-lock"
 var reSpaces = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`\s+`) })
 
 func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
-	defer utils.Catch(&err)
+	defer Catch(&err)
 	gobinManifest = &manifestT{
 		filePath: filepath.Join(dirPath, maniBase),
 		lockPath: filepath.Join(dirPath, maniLockBase),
 	}
 	if _, err_ := os.Stat(gobinManifest.filePath); err_ == nil {
-		reader := utils.V(os.Open(gobinManifest.filePath))
-		defer (func() { utils.V0(reader.Close()) })()
+		reader := V(os.Open(gobinManifest.filePath))
+		defer (func() { V0(reader.Close()) })()
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -53,7 +53,7 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 			line = strings.TrimSpace(divs[0])
 			divs = reSpaces().Split(line, 2)
 			pkgVer := divs[0]
-			optsStr := utils.TernaryF(len(divs) >= 2,
+			optsStr := TernaryF(len(divs) >= 2,
 				func() string { return divs[1] },
 				func() string { return "" },
 			)
@@ -81,8 +81,8 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 			}
 			divs = strings.SplitN(pkgVer, "@", 2)
 			pkg := divs[0]
-			ver := utils.TernaryF(len(divs) >= 2,
-				func() string { return utils.Ternary(divs[1] == "latest", "", divs[1]) },
+			ver := TernaryF(len(divs) >= 2,
+				func() string { return Ternary(divs[1] == "latest", "", divs[1]) },
 				func() string { return "" },
 			)
 			gobinManifest.entries = append(gobinManifest.entries, &maniEntry{
@@ -94,7 +94,7 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 		}
 	}
 	if _, err_ := os.Stat(gobinManifest.lockPath); err_ == nil {
-		gobinManifest.pkgMapVer = utils.V(minlib.PkgVerLockMap(dirPath))
+		gobinManifest.pkgMapVer = V(minlib.PkgVerLockMap(dirPath))
 	}
 	for _, entry := range gobinManifest.entries {
 		if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
@@ -109,9 +109,9 @@ func (mani *manifestT) saveLockfile() (err error) {
 }
 
 func (mani *manifestT) saveLockfileAs(filePath string) (err error) {
-	defer utils.Catch(&err)
-	writer := utils.V(os.Create(filePath))
-	defer (func() { utils.V0(writer.Close()) })()
+	defer Catch(&err)
+	writer := V(os.Create(filePath))
+	defer (func() { V0(writer.Close()) })()
 	sort.Slice(mani.entries, func(i, j int) bool {
 		return mani.entries[i].Pkg < mani.entries[j].Pkg
 	})

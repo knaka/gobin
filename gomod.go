@@ -1,7 +1,7 @@
 package gobin
 
 import (
-	"github.com/knaka/go-utils"
+	. "github.com/knaka/go-utils"
 	"github.com/samber/lo"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -39,13 +39,13 @@ func (mod *goModDefT) requiredModuleByPkg(pkgName string) (x *module.Version) {
 }
 
 func parseGoMod(dirPath string) (goModDef *goModDefT, err error) {
-	defer utils.Catch(&err)
-	filePath := utils.TernaryF(
+	defer Catch(&err)
+	filePath := TernaryF(
 		filepath.Base(dirPath) == goModBase,
 		func() string { return dirPath },
 		func() string { return filepath.Join(dirPath, goModBase) },
 	)
-	goModFile := utils.V(modfile.Parse(filePath, utils.V(os.ReadFile(filePath)), nil))
+	goModFile := V(modfile.Parse(filePath, V(os.ReadFile(filePath)), nil))
 	goModDef = &goModDefT{
 		name: goModFile.Module.Mod.Path,
 		requiredModules: lo.Map(goModFile.Require, func(reqMod *modfile.Require, _ int) *module.Version {
