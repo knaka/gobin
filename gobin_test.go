@@ -48,5 +48,4 @@ func Test_parseManifest(t *testing.T) {
 
 	newLockPath := filepath.Join(tempDir, maniLockBase)
 	V0(manifest.saveLockfileAs(newLockPath))
-	manifest.saveLockfile()
 }
