@@ -4,7 +4,9 @@ package gobin
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/knaka/gobin/log"
 	"github.com/knaka/gobin/minlib"
 	"github.com/samber/lo"
@@ -126,6 +128,35 @@ func search(command string, confDirPath string) (toinstall []*thePkg) {
 	return
 }
 
+func candidateModules(pkg string) (ret []string, err error) {
+	divs := strings.Split(pkg, "/")
+	for {
+		if len(divs) == 0 {
+			break
+		}
+		ret = append(ret, strings.Join(divs, "/"))
+		divs = divs[:len(divs)-1]
+	}
+	return
+}
+
+func queryVersion(pkg string) (version string, err error) {
+	for _, candMod := range V(candidateModules(pkg)) {
+		cmd := exec.Command("go", "list", "-m",
+			"--json", fmt.Sprintf("%s@%s", candMod, "latest"))
+		cmd.Env = append(os.Environ(), "GO111MODULE=on")
+		goListOutput := minlib.GoListOutput{}
+		output, err_ := cmd.Output()
+		if err_ != nil {
+			continue
+		}
+		V0(json.Unmarshal(output, &goListOutput))
+		version = goListOutput.Version
+		break
+	}
+	return
+}
+
 func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 	defer Catch(&err)
 	params := installExParams{
@@ -148,16 +179,33 @@ func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 		return
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
-
-	goModDef := V(parseGoMod(confDirPath))
-	programPkgPath := args[0]
-	mod := goModDef.requiredModuleByPkg(programPkgPath)
-	if mod == nil {
-		err = errors.New("module not found")
+	var cmdPath string
+	for {
+		if !params.global {
+			goModDef := V(parseGoMod(confDirPath))
+			reqMod := goModDef.requiredModuleByPkg(args[0])
+			if reqMod != nil {
+				cmdPath = V(minlib.EnsureInstalled(gobinPath, args[0], reqMod.Version))
+				break
+			}
+		}
+		manifest := V(parseManifest(confDirPath))
+		shouldSave := false
+		entry := manifest.lookup(args[0])
+		if entry != nil {
+			if entry.Version == "" {
+				entry.Version = V(queryVersion(entry.Pkg))
+				shouldSave = true
+			}
+			cmdPath = V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.Version))
+			if shouldSave {
+				V0(manifest.saveLockfile())
+			}
+			break
+		}
+		err = errors.New("no module provides the command")
 		return
 	}
-	cmdPath := V(minlib.EnsureInstalled(gobinPath, programPkgPath, mod.Version))
-
 	cmd = exec.Command(cmdPath, args[1:]...)
 	cmd.Stdin = params.stdin
 	cmd.Stdout = params.stdout

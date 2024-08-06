@@ -1,10 +1,12 @@
 package gobin
 
 import (
+	"fmt"
 	"github.com/knaka/gobin/minlib"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	. "github.com/knaka/go-utils"
@@ -29,7 +31,9 @@ func Test_parseManifest(t *testing.T) {
 	manifest := V(parseManifest(confDirPath))
 	assert.NotNil(t, manifest)
 
-	entry := manifest.lookup("stringer")
+	var entry *maniEntry
+
+	entry = manifest.lookup("stringer")
 	assert.Equal(t, "golang.org/x/tools/cmd/stringer", entry.Pkg)
 	assert.Equal(t, "v0.23.0", entry.Version)
 	assert.Equal(t, "", entry.Tags)
@@ -48,4 +52,66 @@ func Test_parseManifest(t *testing.T) {
 
 	newLockPath := filepath.Join(tempDir, maniLockBase)
 	V0(manifest.saveLockfileAs(newLockPath))
+}
+
+func Test_candidateModules(t *testing.T) {
+	type args struct {
+		pkg string
+	}
+	tests := []struct {
+		name string
+		args args
+		ret  []string
+		err  error
+	}{
+		{
+			"Test 1",
+			args{"golang.org/x/tools/cmd/stringer"},
+			[]string{
+				"golang.org/x/tools/cmd/stringer",
+				"golang.org/x/tools/cmd",
+				"golang.org/x/tools",
+				"golang.org/x",
+				"golang.org",
+			},
+			nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ret, errGotten := candidateModules(tt.args.pkg)
+			assert.Equal(t, tt.err, errGotten)
+			if errGotten == nil {
+				assert.Equalf(t, tt.ret, ret, "candidateModules(%v)", tt.args.pkg)
+			}
+		})
+	}
+}
+
+func Test_queryVersion(t *testing.T) {
+	type args struct {
+		pkg string
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantVersion *regexp.Regexp
+		wantErr     assert.ErrorAssertionFunc
+	}{
+		{
+			"Test",
+			args{"golang.org/x/tools/cmd/stringer"},
+			regexp.MustCompile(`^v\d+\.\d+\.\d+$`),
+			assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotVersion, err := queryVersion(tt.args.pkg)
+			if !tt.wantErr(t, err, fmt.Sprintf("queryVersion(%v)", tt.args.pkg)) {
+				return
+			}
+			assert.Truef(t, tt.wantVersion.MatchString(gotVersion), "queryVersion(%v) = %v, want match %v", tt.args.pkg, gotVersion, tt.wantVersion)
+		})
+	}
 }

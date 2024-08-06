@@ -15,7 +15,7 @@ import (
 func help() {
 	V0(fmt.Fprintf(os.Stderr, `gobin is a tool for managing Go binaries.
 
-Usage: gobin [options] <apply|install|run|help> [args]
+Usage: gobin [options] <run|help> [args]
 `))
 }
 
