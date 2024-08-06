@@ -1,6 +1,7 @@
 package gobin
 
-//go:generate go run gen-bootstrap/main.go
+// //go:generate go run gen-bootstrap/main.go
+// //go:generate go run gobin-run.go gomplate --help
 
 import (
 	"bufio"
