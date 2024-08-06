@@ -1,4 +1,4 @@
-package lib
+package gobin
 
 import (
 	"github.com/knaka/gobin/minlib"

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	lib "github.com/knaka/gobin/lib"
+	"github.com/knaka/gobin"
 	"github.com/knaka/gobin/log"
 	stdlog "log"
 	"os"
@@ -40,7 +40,7 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		cmd := V(lib.CommandEx(subArgs, lib.WithGlobal(*global)))
+		cmd := V(gobin.CommandEx(subArgs, gobin.WithGlobal(*global)))
 		err = cmd.Run()
 		if err == nil {
 			os.Exit(0)
