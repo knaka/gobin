@@ -116,7 +116,9 @@ func (mani *manifestT) saveLockfileAs(filePath string) (err error) {
 		return mani.entries[i].Pkg < mani.entries[j].Pkg
 	})
 	for _, entry := range mani.entries {
-		_, err = writer.WriteString(entry.Pkg + "@" + entry.Version + "\n")
+		if entry.Version != "" {
+			_, err = writer.WriteString(entry.Pkg + "@" + entry.Version + "\n")
+		}
 	}
 	return
 }
