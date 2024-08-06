@@ -109,16 +109,13 @@ func search(command string, confDirPath string) (toinstall []*thePkg) {
 		)
 	}
 	pkgVerMap := V(minlib.PkgVerMap(confDirPath))
-	for pkg_, lockedVer := range *pkgVerMap {
+	for pkg_, lockedVer := range pkgVerMap {
 		if pkg_ == command || path.Base(pkg_) == command {
 			toinstall = append(toinstall, &thePkg{
 				module: "",
 				pkg:    pkg_,
 				ver:    lockedVer,
 			})
-			//for _, req := range lockedVer {
-			//	toinstall = append(toinstall, search(req, confDirPath)...)
-			//}
 			return
 		}
 	}
@@ -215,11 +212,11 @@ type maniT struct {
 	filePath  string
 	entries   []*maniEntry
 	lockPath  string
-	pkgMapVer *minlib.PkgVerMapT
+	pkgMapVer minlib.PkgVerMapT
 }
 
 const maniBase = "Gobinfile"
-const maniLockBase = "Gobinfile-lock.json"
+const maniLockBase = "Gobinfile-lock"
 
 var reSpaces = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`\s+`) })
 
@@ -229,7 +226,7 @@ func parseManifest(dirPath string) (gobinManifest *maniT, err error) {
 		filePath: filepath.Join(dirPath, maniBase),
 		lockPath: filepath.Join(dirPath, maniLockBase),
 	}
-	if _, err = os.Stat(gobinManifest.filePath); err == nil {
+	if _, err_ := os.Stat(gobinManifest.filePath); err_ == nil {
 		reader := V(os.Open(gobinManifest.filePath))
 		defer (func() { V0(reader.Close()) })()
 		scanner := bufio.NewScanner(reader)
@@ -283,8 +280,57 @@ func parseManifest(dirPath string) (gobinManifest *maniT, err error) {
 			})
 		}
 	}
-	if _, err = os.Stat(gobinManifest.lockPath); err == nil {
+	if _, err_ := os.Stat(gobinManifest.lockPath); err_ == nil {
 		gobinManifest.pkgMapVer = V(minlib.PkgVerMap(dirPath))
+	}
+	for _, entry := range gobinManifest.entries {
+		if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
+			entry.Version = lockedVer
+		}
+	}
+	return
+}
+
+func (mani *maniT) save() (err error) {
+	return mani.saveAs(mani.lockPath)
+}
+
+func (mani *maniT) saveAs(filePath string) (err error) {
+	defer Catch(&err)
+	writer := V(os.Create(filePath))
+	defer (func() { V0(writer.Close()) })()
+	for _, entry := range mani.entries {
+		_, err = writer.WriteString(entry.Pkg + " " + entry.Version + "\n")
+	}
+	return
+}
+
+func (mani *maniT) lookup(pattern string) (entry *maniEntry) {
+	divs := strings.SplitN(pattern, "@", 2)
+	pkg := ""
+	base := ""
+	if len(divs) == 2 {
+		pkg = divs[0]
+	} else if strings.Contains(pattern, "/") {
+		pkg = pattern
+	} else {
+		base = pattern
+	}
+	if pkg == "" && base != "" {
+		for _, entry_ := range mani.entries {
+			pkgBase := path.Base(entry_.Pkg)
+			if pkgBase == base {
+				pkg = entry_.Pkg
+			}
+		}
+	}
+	if pkg == "" {
+		return
+	}
+	for _, entry_ := range mani.entries {
+		if entry_.Pkg == pkg {
+			entry = entry_
+		}
 	}
 	return
 }

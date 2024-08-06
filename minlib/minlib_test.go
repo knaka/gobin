@@ -88,14 +88,9 @@ func TestConfAndGobinPaths(t *testing.T) {
 }
 
 func Test_manifestLockModules(t *testing.T) {
-	confDirPath, _ := V2(ConfAndGobinPaths())
+	//confDirPath, _ := V2(ConfAndGobinPaths())
+	confDirPath := filepath.Join("testdata", "foo", "bar")
 	lockList := V(PkgVerMap(confDirPath))
-	found := false
-	for key, _ := range *lockList {
-		if key == "github.com/oNaiPs/go-generate-fast" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found)
+	assert.Equal(t, "v0.23.0", lockList["golang.org/x/tools/cmd/stringer"])
+	assert.Equal(t, "v4.1.0", lockList["github.com/hairyhenderson/gomplate/v4/cmd/gomplate"])
 }

@@ -59,8 +59,7 @@ func isRootDir(dir string) bool {
 
 type PkgVerMapT map[string]string
 
-const manifestFileBase = "Gobinfile"
-const ManifestLockFileBase = "Gobinfile-lock.tsv"
+const ManifestLockFileBase = "Gobinfile-lock"
 const goModFileBase = "go.mod"
 const gobinBase = ".gobin"
 
@@ -132,21 +131,21 @@ type GoListOutput struct {
 	Version string `json:"Version"`
 }
 
-func PkgVerMap(dirPath string) (lockList *PkgVerMapT, err error) {
+func PkgVerMap(dirPath string) (lockList PkgVerMapT, err error) {
 	manifestLockPath := filepath.Join(dirPath, ManifestLockFileBase)
 	if _, err_ := os.Stat(manifestLockPath); err_ != nil {
 		return
 	}
 	reader := v(os.Open(manifestLockPath))
 	scanner := bufio.NewScanner(reader)
-	m := make(PkgVerMapT)
+	lockList = make(PkgVerMapT)
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.TrimSpace(line)
-		divs := strings.SplitN(line, " ", 2)
-		m[divs[0]] = divs[1]
+		divs := strings.SplitN(line, "@", 2)
+		lockList[divs[0]] = divs[1]
 	}
-	return &m, nil
+	return
 }
 
 func Run() {
@@ -154,7 +153,7 @@ func Run() {
 	lockList := v(PkgVerMap(confDirPath))
 	module := "github.com/knaka/gobin"
 	pkgName := "github.com/knaka/gobin/cmd/gobin"
-	ver, ok := (*lockList)[pkgName]
+	ver, ok := lockList[pkgName]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
 			"--json", fmt.Sprintf("%s@%s", module, "latest"))
