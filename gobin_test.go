@@ -47,6 +47,6 @@ func Test_parseManifest(t *testing.T) {
 	t.Cleanup(func() { V0(os.RemoveAll(tempDir)) })
 
 	newLockPath := filepath.Join(tempDir, maniLockBase)
-	V0(manifest.saveAs(newLockPath))
-	println("hello")
+	V0(manifest.saveLockfileAs(newLockPath))
+	manifest.saveLockfile()
 }

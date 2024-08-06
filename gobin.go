@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -291,16 +292,19 @@ func parseManifest(dirPath string) (gobinManifest *maniT, err error) {
 	return
 }
 
-func (mani *maniT) save() (err error) {
-	return mani.saveAs(mani.lockPath)
+func (mani *maniT) saveLockfile() (err error) {
+	return mani.saveLockfileAs(mani.lockPath)
 }
 
-func (mani *maniT) saveAs(filePath string) (err error) {
+func (mani *maniT) saveLockfileAs(filePath string) (err error) {
 	defer Catch(&err)
 	writer := V(os.Create(filePath))
 	defer (func() { V0(writer.Close()) })()
+	sort.Slice(mani.entries, func(i, j int) bool {
+		return mani.entries[i].Pkg < mani.entries[j].Pkg
+	})
 	for _, entry := range mani.entries {
-		_, err = writer.WriteString(entry.Pkg + " " + entry.Version + "\n")
+		_, err = writer.WriteString(entry.Pkg + "@" + entry.Version + "\n")
 	}
 	return
 }
