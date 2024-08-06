@@ -40,7 +40,12 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		cmd := V(gobin.CommandEx(subArgs, gobin.WithGlobal(*global)))
+		cmd := V(gobin.CommandEx(subArgs,
+			gobin.WithStdin(os.Stdin),
+			gobin.WithStdout(os.Stdout),
+			gobin.WithStderr(os.Stderr),
+			gobin.WithGlobal(*global)),
+		)
 		err = cmd.Run()
 		if err == nil {
 			os.Exit(0)
@@ -66,7 +71,6 @@ func Main() (err error) {
 }
 
 func main() {
-	Debugger()
 	if err := Main(); err != nil {
 		stdlog.Fatalf("Error: %+v", err)
 	}

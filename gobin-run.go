@@ -152,6 +152,31 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 	return
 }
 
+func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPath string, err error) {
+	pkgBase := path.Base(pkgPath)
+	pkgBaseVer := pkgBase + "@" + ver
+	cmdPath := filepath.Join(gobinPath, pkgBase)
+	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
+	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
+		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", pkgPath, ver))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		_ = os.Remove(cmdPath)
+		err = cmd.Run()
+		if err != nil {
+			return
+		}
+		_ = os.Remove(cmdPkgVerPath)
+		err = os.Rename(filepath.Join(gobinPath, pkgBase), cmdPkgVerPath)
+		if err != nil {
+			return
+		}
+		//v0(os.Link(cmdPkgVerPath, cmdPath)
+	}
+	return
+}
+
 func run() {
 	confDirPath, gobinPath := v2(ConfDirPath())
 	lockList := v(PkgVerLockMap(confDirPath))
@@ -168,19 +193,9 @@ func run() {
 		v0(json.Unmarshal(output, &goListOutput))
 		ver = goListOutput.Version
 	}
-	pkgBase := path.Base(pkgPath)
-	pkgBaseVer := pkgBase + "@" + ver
-	cmdPkgVerPath := filepath.Join(gobinPath, pkgBaseVer)
-	if _, err := os.Stat(cmdPkgVerPath); err != nil {
-		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", modPath, ver))
-		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
-		cmd.Stderr = os.Stderr
-		v0(cmd.Run())
-		_ = os.Remove(cmdPkgVerPath)
-		v0(os.Rename(filepath.Join(gobinPath, pkgBase), cmdPkgVerPath))
-		v0(os.Link(cmdPkgVerPath, filepath.Join(gobinPath, pkgBase)))
-	}
+	cmdPkgVerPath := v(EnsureInstalled(gobinPath, pkgPath, ver))
 	cmd := exec.Command(cmdPkgVerPath, append([]string{"run"}, os.Args[1:]...)...)
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()

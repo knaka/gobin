@@ -23,7 +23,7 @@ import (
 	. "github.com/knaka/go-utils"
 )
 
-type InstallExParams struct {
+type installExParams struct {
 	Dir             string
 	Env             []string
 	WithGobinPath   bool
@@ -35,59 +35,59 @@ type InstallExParams struct {
 	global          bool
 }
 
-type Opt func(params *InstallExParams) error
+type Opt func(params *installExParams) error
 
 func WithGlobal(f bool) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.global = f
 		return
 	}
 }
 
 func WithDir(dir string) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.Dir = dir
 		return
 	}
 }
 
 func Verbose(f bool) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.verbose = f
 		return
 	}
 }
 
 func WithEnv(env []string) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.Env = env
 		return
 	}
 }
 
 func WithGobinPath(f bool) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.WithGobinPath = f
 		return
 	}
 }
 
 func WithStdin(stdin io.Reader) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.stdin = stdin
 		return
 	}
 }
 
 func WithStdout(stdout io.Writer) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.stdout = stdout
 		return
 	}
 }
 
 func WithStderr(stderr io.Writer) Opt {
-	return func(params *InstallExParams) (err error) {
+	return func(params *installExParams) (err error) {
 		params.stderr = stderr
 		return
 	}
@@ -128,7 +128,7 @@ func search(command string, confDirPath string) (toinstall []*thePkg) {
 
 func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 	defer Catch(&err)
-	params := InstallExParams{
+	params := installExParams{
 		WithGobinPath: true,
 		stdin:         os.Stdin,
 		stdout:        os.Stdout,
@@ -143,19 +143,29 @@ func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
-
 	if len(args) == 0 {
 		err = errors.New("no command specified")
 		return
 	}
+	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
 
-	command := args[0]
+	goModDef := V(parseGoMod(confDirPath))
+	programPkgPath := args[0]
+	mod := goModDef.requiredModuleByPkg(programPkgPath)
+	if mod == nil {
+		err = errors.New("module not found")
+		return
+	}
+	cmdPath := V(minlib.EnsureInstalled(gobinPath, programPkgPath, mod.Version))
 
-	confDirPath /* gobinPath */, _ := V2(minlib.ConfDirPath(goModOptions...))
-
-	search(command, confDirPath)
+	cmd = exec.Command(cmdPath, args[1:]...)
+	cmd.Stdin = params.stdin
+	cmd.Stdout = params.stdout
+	cmd.Stderr = params.stderr
+	if params.WithGobinPath {
+		cmd.Env = append(os.Environ(), "PATH="+gobinPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
+	}
 	return
-
 }
 
 const goModBase = "go.mod"
