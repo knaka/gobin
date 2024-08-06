@@ -1,6 +1,7 @@
 package minlib
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,7 +64,7 @@ func TestConfAndGobinPaths(t *testing.T) {
 		},
 		{
 			"Global",
-			args{[]GoModOption{withGlobal(true)}},
+			args{[]GoModOption{WithGlobal(true)}},
 			V(os.UserHomeDir()),
 			Elvis(os.Getenv("GOBIN"), filepath.Join(V(os.UserHomeDir()), "go", "bin")),
 			false,
@@ -84,4 +85,17 @@ func TestConfAndGobinPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_manifestLockModules(t *testing.T) {
+	confDirPath, _ := V2(ConfAndGobinPaths())
+	lockList := V(PkgVerMap(confDirPath))
+	found := false
+	for key, _ := range *lockList {
+		if key == "github.com/oNaiPs/go-generate-fast" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
 }
