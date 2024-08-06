@@ -192,7 +192,6 @@ func run() {
 		output := v(cmd.Output())
 		v0(json.Unmarshal(output, &goListOutput))
 		ver = goListOutput.Version
-
 		manifestLockPath := filepath.Join(confDirPath, ManifestLockFileBase)
 		writer := v(os.OpenFile(manifestLockPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600))
 		defer (func() { v0(writer.Close()) })()
