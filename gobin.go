@@ -1,7 +1,13 @@
 package gobin
 
-// //go:generate go run gen-bootstrap/main.go
+import "io"
+
+//go:generate_input gen-bootstrap/* minlib/minlib.go
+//go:generate_output gobin-run.go
+//go:generate go run ./gen-bootstrap
+
 // //go:generate go run gobin-run.go gomplate --help
+// //go:generate go run gobin-run.go golang.org/x/tools/cmd/stringer -h
 
 import (
 	"bufio"
@@ -13,7 +19,6 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/mod/modfile"
 	gomodule "golang.org/x/mod/module"
-	"io"
 	"os"
 	"os/exec"
 	"path"
