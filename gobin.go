@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-type installExParams struct {
+type installParams struct {
 	Dir             string
 	Env             []string
 	WithGobinPath   bool
@@ -34,11 +34,11 @@ type installExParams struct {
 	global          bool
 }
 
-type Option func(params *installExParams) error
+type Option func(params *installParams) error
 
 //goland:noinspection GoUnusedExportedFunction
-func WithGlobal(f bool) Option {
-	return func(params *installExParams) (err error) {
+func Global(f bool) Option {
+	return func(params *installParams) (err error) {
 		params.global = f
 		return
 	}
@@ -46,7 +46,7 @@ func WithGlobal(f bool) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithDir(dir string) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.Dir = dir
 		return
 	}
@@ -54,7 +54,7 @@ func WithDir(dir string) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func Verbose(f bool) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.verbose = f
 		return
 	}
@@ -62,7 +62,7 @@ func Verbose(f bool) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithEnv(env []string) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.Env = env
 		return
 	}
@@ -70,7 +70,7 @@ func WithEnv(env []string) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithGobinPath(f bool) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.WithGobinPath = f
 		return
 	}
@@ -78,7 +78,7 @@ func WithGobinPath(f bool) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithStdin(stdin io.Reader) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.stdin = stdin
 		return
 	}
@@ -86,7 +86,7 @@ func WithStdin(stdin io.Reader) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithStdout(stdout io.Writer) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.stdout = stdout
 		return
 	}
@@ -94,7 +94,7 @@ func WithStdout(stdout io.Writer) Option {
 
 //goland:noinspection GoUnusedExportedFunction
 func WithStderr(stderr io.Writer) Option {
-	return func(params *installExParams) (err error) {
+	return func(params *installParams) (err error) {
 		params.stderr = stderr
 		return
 	}
@@ -129,16 +129,57 @@ func queryVersion(pkg string) (version string, err error) {
 	return
 }
 
-func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
-	defer Catch(&err)
-	params := installExParams{
+func newInstallParams() *installParams {
+	return &installParams{
 		WithGobinPath: true,
 		stdin:         os.Stdin,
 		stdout:        os.Stdout,
 		stderr:        os.Stderr,
 	}
+}
+
+func install(targets []string, global bool, confDirPath string, gobinPath string) (cmdPath string, err error) {
+	defer Catch(&err)
+	for {
+		if len(targets) == 0 {
+			break
+		}
+		target := targets[0]
+		targets = targets[1:]
+		if !global {
+			goModDef := V(parseGoMod(confDirPath))
+			reqMod := goModDef.requiredModuleByPkg(target)
+			if reqMod != nil {
+				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version)))
+				continue
+			}
+		}
+		manifest := V(parseManifest(confDirPath))
+		shouldSave := false
+		entry := manifest.lookup(target)
+		if entry != nil {
+			targets = append(targets, entry.Requires...)
+			if entry.Version == "" {
+				entry.Version = V(queryVersion(entry.Pkg))
+				shouldSave = true
+			}
+			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.Version)))
+			if shouldSave {
+				V0(manifest.saveLockfile())
+			}
+			continue
+		}
+		err = errors.New(fmt.Sprintf("command “%s” is not defined", target))
+		return
+	}
+	return
+}
+
+func InstallEx(patterns []string, opts ...Option) (err error) {
+	defer Catch(&err)
+	params := newInstallParams()
 	for _, opt := range opts {
-		V0(opt(&params))
+		V0(opt(params))
 	}
 	if params.verbose {
 		log.SetOutput(params.stderr)
@@ -146,44 +187,69 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
+	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
+	_ = V(install(patterns, params.global, confDirPath, gobinPath))
+	return
+}
+
+//goland:noinspection GoUnusedExportedFunction
+func Install(patterns ...string) (err error) {
+	return InstallEx(patterns)
+}
+
+func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
+	defer Catch(&err)
 	if len(args) == 0 {
 		err = errors.New("no command specified")
 		return
 	}
-	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
-	var cmdPath string
-	for {
-		if !params.global {
-			goModDef := V(parseGoMod(confDirPath))
-			reqMod := goModDef.requiredModuleByPkg(args[0])
-			if reqMod != nil {
-				cmdPath = V(minlib.EnsureInstalled(gobinPath, args[0], reqMod.Version))
-				break
-			}
-		}
-		manifest := V(parseManifest(confDirPath))
-		shouldSave := false
-		entry := manifest.lookup(args[0])
-		if entry != nil {
-			if entry.Version == "" {
-				entry.Version = V(queryVersion(entry.Pkg))
-				shouldSave = true
-			}
-			cmdPath = V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.Version))
-			if shouldSave {
-				V0(manifest.saveLockfile())
-			}
-			break
-		}
-		err = errors.New("no module provides the command")
-		return
+	params := newInstallParams()
+	for _, opt := range opts {
+		V0(opt(params))
 	}
+	if params.verbose {
+		log.SetOutput(params.stderr)
+	}
+	goModOptions := []minlib.ConfDirPathOption{
+		minlib.WithGlobal(params.global),
+	}
+	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
+	cmdPath := V(install([]string{args[0]}, params.global, confDirPath, gobinPath))
 	cmd = exec.Command(cmdPath, args[1:]...)
 	cmd.Stdin = params.stdin
 	cmd.Stdout = params.stdout
 	cmd.Stderr = params.stderr
+	cmd.Env = os.Environ()
+	if params.Env != nil {
+		cmd.Env = append(cmd.Env, params.Env...)
+	}
 	if params.WithGobinPath {
-		cmd.Env = append(os.Environ(), "PATH="+gobinPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
+		cmd.Env = append(cmd.Env, "PATH="+gobinPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
 	}
 	return
+}
+
+//goland:noinspection GoUnusedExportedFunction
+func Command(args ...string) (cmd *exec.Cmd, err error) {
+	return CommandEx(args)
+}
+
+//goland:noinspection GoUnusedExportedFunction
+func RunEx(args []string, opts ...Option) (err error) {
+	defer Catch(&err)
+	cmd := V(CommandEx(args, opts...))
+	err = cmd.Run()
+	if err == nil {
+		os.Exit(0)
+	}
+	errExit := ErrorAs[*exec.ExitError](err)
+	if errExit != nil {
+		os.Exit(errExit.ExitCode())
+	}
+	return
+}
+
+//goland:noinspection GoUnusedExportedFunction
+func Run(args ...string) (err error) {
+	return RunEx(args)
 }

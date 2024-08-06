@@ -18,6 +18,7 @@ type goModDefT struct {
 	requiredModules []*module.Version
 }
 
+// requiredModule returns the required module if it exists.
 func (mod *goModDefT) requiredModule(moduleName string) (x *module.Version) {
 	for _, req := range mod.requiredModules {
 		if req.Path == moduleName {
@@ -28,6 +29,7 @@ func (mod *goModDefT) requiredModule(moduleName string) (x *module.Version) {
 	return
 }
 
+// requiredModuleByPkg returns the required module by package name.
 func (mod *goModDefT) requiredModuleByPkg(pkgName string) (x *module.Version) {
 	for _, reqMod := range mod.requiredModules {
 		if reqMod.Path == pkgName || strings.HasPrefix(pkgName, reqMod.Path+"/") {
@@ -38,6 +40,7 @@ func (mod *goModDefT) requiredModuleByPkg(pkgName string) (x *module.Version) {
 	return
 }
 
+// parseGoMod parses the go.mod file in the given directory.
 func parseGoMod(dirPath string) (goModDef *goModDefT, err error) {
 	defer Catch(&err)
 	filePath := TernaryF(

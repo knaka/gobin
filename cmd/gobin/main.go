@@ -3,19 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	. "github.com/knaka/go-utils"
 	"github.com/knaka/gobin"
 	"github.com/knaka/gobin/log"
 	stdlog "log"
 	"os"
-	"os/exec"
-
-	. "github.com/knaka/go-utils"
 )
 
 func help() {
 	V0(fmt.Fprintf(os.Stderr, `gobin is a tool for managing Go binaries.
 
-Usage: gobin [options] <run|help> [args]
+Usage: gobin [options] <install|run|help> [args]
 `))
 }
 
@@ -40,25 +38,18 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		cmd := V(gobin.CommandEx(subArgs,
+		return gobin.RunEx(subArgs,
 			gobin.WithStdin(os.Stdin),
 			gobin.WithStdout(os.Stdout),
 			gobin.WithStderr(os.Stderr),
-			gobin.WithGlobal(*global)),
+			gobin.Global(*global),
+			gobin.Verbose(*verbose),
 		)
-		err = cmd.Run()
-		if err == nil {
-			os.Exit(0)
-		}
-		errExit := ErrorAs[*exec.ExitError](err)
-		if errExit != nil {
-			os.Exit(errExit.ExitCode())
-		}
-		return err
-	//case "install":
-	//	return lib.Install(subArgs...)
-	//case "apply":
-	//	return lib.Apply(subArgs)
+	case "install":
+		return gobin.InstallEx(subArgs,
+			gobin.Global(*global),
+			gobin.Verbose(*verbose),
+		)
 	case "help":
 		help()
 		return nil
