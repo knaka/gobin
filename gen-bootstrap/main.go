@@ -16,9 +16,9 @@ var rePackage = sync.OnceValue(func() (re *regexp.Regexp) {
 })
 
 func main() {
-	for _, subCmd := range []string{"run", "install", "apply"} {
+	for _, subCmd := range []string{"run" /* , "install", "apply" */} {
 		(func() {
-			reader := V(os.Open(filepath.Join("lib", "sub.go")))
+			reader := V(os.Open(filepath.Join("minlib", "minlib.go")))
 			defer (func() { V0(reader.Close()) })()
 			scanner := bufio.NewScanner(reader)
 			writer := V(os.Create(filepath.Join("gobin-" + subCmd + ".go")))
@@ -39,7 +39,7 @@ func main() {
 			}
 			V0(writer.WriteString(fmt.Sprintf(`
 func main() {
-	%s(os.Args[1:])
+	%s()
 }
 `, subCmd)))
 		})()

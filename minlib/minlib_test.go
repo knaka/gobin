@@ -9,13 +9,13 @@ import (
 	. "github.com/knaka/go-utils"
 )
 
-func TestConfAndGobinPaths(t *testing.T) {
+func TestGetConfPath(t *testing.T) {
 	defaultTempDir := os.TempDir()
 	Ignore(os.Remove(filepath.Join(defaultTempDir, "go.mod")))
 	tempDir := V(os.MkdirTemp(defaultTempDir, "gobin-test"))
 	t.Cleanup(func() { Ignore(os.RemoveAll(tempDir)) })
 	type args struct {
-		opts []GoModOption
+		opts []ConfDirPathOption
 	}
 	tests := []struct {
 		name            string
@@ -33,7 +33,7 @@ func TestConfAndGobinPaths(t *testing.T) {
 		},
 		{
 			"Test go.mod",
-			args{[]GoModOption{WithInitialDir(filepath.Join(
+			args{[]ConfDirPathOption{WithInitialDir(filepath.Join(
 				".",
 				"testdata",
 				"foo",
@@ -56,7 +56,7 @@ func TestConfAndGobinPaths(t *testing.T) {
 		{
 			"No go.mod",
 			args{
-				[]GoModOption{WithInitialDir(filepath.Join(tempDir))},
+				[]ConfDirPathOption{WithInitialDir(filepath.Join(tempDir))},
 			},
 			"",
 			"",
@@ -64,7 +64,7 @@ func TestConfAndGobinPaths(t *testing.T) {
 		},
 		{
 			"Global",
-			args{[]GoModOption{WithGlobal(true)}},
+			args{[]ConfDirPathOption{WithGlobal(true)}},
 			V(os.UserHomeDir()),
 			Elvis(os.Getenv("GOBIN"), filepath.Join(V(os.UserHomeDir()), "go", "bin")),
 			false,
@@ -72,25 +72,25 @@ func TestConfAndGobinPaths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotConfDirPath, gotGobinDirPath, err := ConfAndGobinPaths(tt.args.opts...)
+			gotConfDirPath, gotGobinDirPath, err := ConfDirPath(tt.args.opts...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ConfAndGobinPaths() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ConfDirPath() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotConfDirPath != tt.wantConfDirPath {
-				t.Errorf("ConfAndGobinPaths() gotConfDirPath = %v, want %v", gotConfDirPath, tt.wantConfDirPath)
+				t.Errorf("ConfDirPath() gotConfDirPath = %v, want %v", gotConfDirPath, tt.wantConfDirPath)
 			}
 			if gotGobinDirPath != tt.wantGobinPath {
-				t.Errorf("ConfAndGobinPaths() gotGobinDirPath = %v, want %v", gotGobinDirPath, tt.wantGobinPath)
+				t.Errorf("ConfDirPath() gotGobinDirPath = %v, want %v", gotGobinDirPath, tt.wantGobinPath)
 			}
 		})
 	}
 }
 
 func Test_manifestLockModules(t *testing.T) {
-	//confDirPath, _ := V2(ConfAndGobinPaths())
+	//confDirPath, _ := V2(ConfDirPath())
 	confDirPath := filepath.Join("testdata", "foo", "bar")
-	lockList := V(PkgVerMap(confDirPath))
+	lockList := V(PkgVerLockMap(confDirPath))
 	assert.Equal(t, "v0.23.0", lockList["golang.org/x/tools/cmd/stringer"])
 	assert.Equal(t, "v4.1.0", lockList["github.com/hairyhenderson/gomplate/v4/cmd/gomplate"])
 }

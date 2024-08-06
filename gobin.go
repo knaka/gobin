@@ -1,5 +1,7 @@
 package gobin
 
+//go:generate go run gen-bootstrap/main.go
+
 import (
 	"bufio"
 	"errors"
@@ -109,7 +111,7 @@ func search(command string, confDirPath string) (toinstall []*thePkg) {
 			},
 		)
 	}
-	pkgVerMap := V(minlib.PkgVerMap(confDirPath))
+	pkgVerMap := V(minlib.PkgVerLockMap(confDirPath))
 	for pkg_, lockedVer := range pkgVerMap {
 		if pkg_ == command || path.Base(pkg_) == command {
 			toinstall = append(toinstall, &thePkg{
@@ -138,7 +140,7 @@ func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 	if params.verbose {
 		log.SetOutput(params.stderr)
 	}
-	goModOptions := []minlib.GoModOption{
+	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
 
@@ -149,7 +151,7 @@ func CommandEx(args []string, opts ...Opt) (cmd *exec.Cmd, err error) {
 
 	command := args[0]
 
-	confDirPath /* gobinPath */, _ := V2(minlib.ConfAndGobinPaths(goModOptions...))
+	confDirPath /* gobinPath */, _ := V2(minlib.ConfDirPath(goModOptions...))
 
 	search(command, confDirPath)
 	return
@@ -213,7 +215,7 @@ type maniT struct {
 	filePath  string
 	entries   []*maniEntry
 	lockPath  string
-	pkgMapVer minlib.PkgVerMapT
+	pkgMapVer minlib.PkgVerLockMapT
 }
 
 const maniBase = "Gobinfile"
@@ -282,7 +284,7 @@ func parseManifest(dirPath string) (gobinManifest *maniT, err error) {
 		}
 	}
 	if _, err_ := os.Stat(gobinManifest.lockPath); err_ == nil {
-		gobinManifest.pkgMapVer = V(minlib.PkgVerMap(dirPath))
+		gobinManifest.pkgMapVer = V(minlib.PkgVerLockMap(dirPath))
 	}
 	for _, entry := range gobinManifest.entries {
 		if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {

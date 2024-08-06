@@ -16,7 +16,7 @@ func TestCommandEx(t *testing.T) {
 }
 
 func Test_goModModules(t *testing.T) {
-	confDirPath, _ := V2(minlib.ConfAndGobinPaths())
+	confDirPath, _ := V2(minlib.ConfDirPath())
 	goMod := V(parseGoMod(confDirPath))
 	assert.NotNil(t, goMod.requiredModule("github.com/knaka/go-utils"))
 	assert.Nil(t, goMod.requiredModule("github.com/knaka/go-utils/cmd/foo"))
