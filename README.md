@@ -36,6 +36,15 @@ $ echo golang.org/x/tools/cmd/stringer@v0.11 >> Gobinfile
 $ echo github.com/sqlc-dev/sqlc/cmd/sqlc@latest >> Gobinfile
 ```
 
+or record the module of the program package to `go.mod` file as described in “[Go Wiki: Go Modules - The Go Programming Language](https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module)”:
+
+```go
+//go:build tools
+package main
+
+import _ "golang.org/x/tools/cmd/stringer"
+```
+
 then, add the following to the source code:
 
 ```go
