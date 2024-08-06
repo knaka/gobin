@@ -173,6 +173,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPat
 	return
 }
 
+//goland:noinspection GoUnusedFunction
 func run() {
 	confDirPath, gobinPath := v2(ConfDirPath())
 	lockList := v(PkgVerLockMap(confDirPath))
