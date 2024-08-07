@@ -40,8 +40,9 @@ func v2[T any, U any](t T, u U, err error) (T, U) {
 }
 
 type paramsT struct {
-	initialDirPath string
-	global         bool
+	initialDirPath   string
+	global           bool
+	installationOnly bool
 }
 
 type ConfDirPathOption func(*paramsT) error
@@ -58,6 +59,13 @@ func canonAbs(s string) (ret string, err error) {
 	}
 	ret = filepath.Clean(ret)
 	return
+}
+
+func installationOnly(f bool) ConfDirPathOption {
+	return func(params *paramsT) error {
+		params.installationOnly = f
+		return nil
+	}
 }
 
 func WithInitialDir(initialDir string) ConfDirPathOption {
@@ -89,6 +97,7 @@ const ManifestLockFileBase = "Gobinfile-lock"
 const goModFileBase = "go.mod"
 const gobinBase = ".gobin"
 
+// ConfDirPath returns the configuration directory path (and the $GOBIN path).
 func ConfDirPath(opts ...ConfDirPathOption) (
 	confDirPath string,
 	gobinPath string,
@@ -133,10 +142,12 @@ func ConfDirPath(opts ...ConfDirPathOption) (
 	return
 }
 
+// GoListOutput represents the output of the `go list` command.
 type GoListOutput struct {
 	Version string `json:"Version"`
 }
 
+// PkgVerLockMap returns the package version lock map.
 func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 	manifestLockPath := filepath.Join(dirPath, ManifestLockFileBase)
 	if _, err_ := os.Stat(manifestLockPath); err_ != nil {
@@ -154,6 +165,7 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 	return
 }
 
+// EnsureInstalled ensures that the program package is installed.
 func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
@@ -174,7 +186,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPat
 		if err != nil {
 			return
 		}
-		//v0(os.Link(cmdPkgVerPath, cmdPath)
+		v0(os.Link(cmdPkgVerPath, cmdPath))
 	}
 	return
 }
@@ -182,17 +194,17 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPat
 //goland:noinspection GoUnusedFunction
 func run() {
 	confDirPath, gobinPath := v2(ConfDirPath())
-	lockList := v(PkgVerLockMap(confDirPath))
+	pkgVerLockMap := v(PkgVerLockMap(confDirPath))
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
-	ver, ok := lockList[pkgPath]
+	ver, ok := pkgVerLockMap[pkgPath]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
 			"--json", fmt.Sprintf("%s@%s", modPath, "latest"))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmd.Stderr = os.Stderr
-		goListOutput := GoListOutput{}
 		output := v(cmd.Output())
+		goListOutput := GoListOutput{}
 		v0(json.Unmarshal(output, &goListOutput))
 		ver = goListOutput.Version
 		manifestLockPath := filepath.Join(confDirPath, ManifestLockFileBase)

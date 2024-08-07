@@ -188,17 +188,17 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPat
 //goland:noinspection GoUnusedFunction
 func run() {
 	confDirPath, gobinPath := v2(ConfDirPath())
-	lockList := v(PkgVerLockMap(confDirPath))
+	pkgVerLockMap := v(PkgVerLockMap(confDirPath))
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
-	ver, ok := lockList[pkgPath]
+	ver, ok := pkgVerLockMap[pkgPath]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
 			"--json", fmt.Sprintf("%s@%s", modPath, "latest"))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmd.Stderr = os.Stderr
-		goListOutput := GoListOutput{}
 		output := v(cmd.Output())
+		goListOutput := GoListOutput{}
 		v0(json.Unmarshal(output, &goListOutput))
 		ver = goListOutput.Version
 		manifestLockPath := filepath.Join(confDirPath, ManifestLockFileBase)
