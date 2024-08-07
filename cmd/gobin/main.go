@@ -13,7 +13,7 @@ import (
 func help() {
 	V0(fmt.Fprintf(os.Stderr, `gobin is a tool for managing Go binaries.
 
-Usage: gobin [options] <install|run|help> [args]
+Usage: gobin [options] <install|run|update|help> [args]
 `))
 }
 
@@ -48,6 +48,11 @@ func Main() (err error) {
 		)
 	case "install":
 		return gobin.InstallEx(subArgs,
+			gobin.Global(*global),
+			gobin.Verbose(*verbose),
+		)
+	case "update":
+		return gobin.UpdateEx(subArgs,
 			gobin.Global(*global),
 			gobin.Verbose(*verbose),
 		)

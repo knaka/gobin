@@ -14,7 +14,7 @@ import (
 )
 
 func TestCommandEx(t *testing.T) {
-	cmd := V(CommandEx([]string{"stringer", "-help"}))
+	cmd := V(CommandEx([]string{"golang.org/x/tools/cmd/stringer", "-help"}))
 	println(cmd)
 }
 
@@ -61,16 +61,19 @@ func Test_parseManifest(t *testing.T) {
 	entry = manifest.lookup("stringer")
 	assert.Equal(t, "golang.org/x/tools/cmd/stringer", entry.Pkg)
 	assert.Equal(t, "v0.23.0", entry.Version)
+	assert.Equal(t, "v0.23.0", entry.LockedVersion)
 	assert.Equal(t, "", entry.Tags)
 
 	entry = manifest.lookup("github.com/hairyhenderson/gomplate/v4/cmd/gomplate")
 	assert.Equal(t, "github.com/hairyhenderson/gomplate/v4/cmd/gomplate", entry.Pkg)
-	assert.Equal(t, "v4.1.0", entry.Version)
+	assert.Equal(t, "latest", entry.Version)
+	assert.Equal(t, "v4.1.0", entry.LockedVersion)
 	assert.Equal(t, "foo,bar", entry.Tags)
 
-	entry.Version = "v4.2.0"
+	entry.LockedVersion = "v4.2.0"
 	entry = manifest.lookup("github.com/hairyhenderson/gomplate/v4/cmd/gomplate")
-	assert.Equal(t, "v4.2.0", entry.Version)
+	assert.Equal(t, "latest", entry.Version)
+	assert.Equal(t, "v4.2.0", entry.LockedVersion)
 
 	newLockPath := filepath.Join(tempDir, maniLockBase)
 	V0(manifest.saveLockfileAs(newLockPath))

@@ -14,10 +14,11 @@ import (
 )
 
 type maniEntry struct {
-	Pkg      string
-	Version  string `json:"version"`
-	Tags     string
-	Requires []string
+	Pkg           string
+	Version       string `json:"version"`
+	LockedVersion string
+	Tags          string
+	Requires      []string
 }
 
 // manifestT is the internal representation of the manifest and the manifest lock file.
@@ -30,6 +31,7 @@ type manifestT struct {
 
 const maniBase = "Gobinfile"
 const maniLockBase = "Gobinfile-lock"
+const latestVer = "latest"
 
 var reSpaces = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`\s+`) })
 
@@ -82,8 +84,8 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 			divs = strings.SplitN(pkgVer, "@", 2)
 			pkg := divs[0]
 			ver := TernaryF(len(divs) >= 2,
-				func() string { return Ternary(divs[1] == "latest", "", divs[1]) },
-				func() string { return "" },
+				func() string { return divs[1] },
+				func() string { return latestVer },
 			)
 			gobinManifest.entries = append(gobinManifest.entries, &maniEntry{
 				Pkg:      pkg,
@@ -96,13 +98,19 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 	if _, err_ := os.Stat(gobinManifest.lockPath); err_ == nil {
 		gobinManifest.pkgMapVer = V(minlib.PkgVerLockMap(dirPath))
 	}
+	shouldSave := false
 	for _, entry := range gobinManifest.entries {
-		if entry.Version != "" {
-			continue
+		if entry.Version != latestVer {
+			entry.LockedVersion = entry.Version
+			shouldSave = true
+		} else if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
+			entry.LockedVersion = lockedVer
+		} else {
+			entry.LockedVersion = latestVer
 		}
-		if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
-			entry.Version = lockedVer
-		}
+	}
+	if shouldSave {
+		V0(gobinManifest.saveLockfile())
 	}
 	return
 }
@@ -119,8 +127,8 @@ func (mani *manifestT) saveLockfileAs(filePath string) (err error) {
 		return mani.entries[i].Pkg < mani.entries[j].Pkg
 	})
 	for _, entry := range mani.entries {
-		if entry.Version != "" {
-			_, err = writer.WriteString(entry.Pkg + "@" + entry.Version + "\n")
+		if entry.LockedVersion != latestVer {
+			_, err = writer.WriteString(entry.Pkg + "@" + entry.LockedVersion + "\n")
 		}
 	}
 	return
@@ -154,4 +162,8 @@ func (mani *manifestT) lookup(pattern string) (entry *maniEntry) {
 		}
 	}
 	return
+}
+
+func (mani *manifestT) Entries() []*maniEntry {
+	return mani.entries
 }

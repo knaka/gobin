@@ -1,6 +1,9 @@
 package gobin
 
-import "io"
+import (
+	"github.com/samber/lo"
+	"io"
+)
 
 //go:generate_input gen-bootstrap/* minlib/minlib.go
 //go:generate_output gobin-run.go
@@ -115,7 +118,7 @@ func candidateModules(pkg string) (ret []string, err error) {
 func queryVersion(pkg string) (version string, err error) {
 	for _, candidate := range V(candidateModules(pkg)) {
 		cmd := exec.Command("go", "list", "-m",
-			"--json", fmt.Sprintf("%s@%s", candidate, "latest"))
+			"--json", fmt.Sprintf("%s@%s", candidate, latestVer))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		goListOutput := minlib.GoListOutput{}
 		output, err_ := cmd.Output()
@@ -159,11 +162,11 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 		entry := manifest.lookup(target)
 		if entry != nil {
 			targets = append(targets, entry.Requires...)
-			if entry.Version == "" {
-				entry.Version = V(queryVersion(entry.Pkg))
+			if entry.LockedVersion == latestVer {
+				entry.LockedVersion = V(queryVersion(entry.Pkg))
 				shouldSave = true
 			}
-			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.Version)))
+			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion)))
 			if shouldSave {
 				V0(manifest.saveLockfile())
 			}
@@ -252,4 +255,45 @@ func RunEx(args []string, opts ...Option) (err error) {
 //goland:noinspection GoUnusedExportedFunction
 func Run(args ...string) (err error) {
 	return RunEx(args)
+}
+
+func UpdateEx(patterns []string, opts ...Option) (err error) {
+	defer Catch(&err)
+	params := newInstallParams()
+	for _, opt := range opts {
+		V0(opt(params))
+	}
+	if params.verbose {
+		log.SetOutput(params.stderr)
+	}
+	goModOptions := []minlib.ConfDirPathOption{
+		minlib.WithGlobal(params.global),
+	}
+	confDirPath, _ := V2(minlib.ConfDirPath(goModOptions...))
+	manifest := V(parseManifest(confDirPath))
+	var latestEntries []*maniEntry
+	if len(patterns) == 0 {
+		latestEntries = lo.Filter(manifest.Entries(), func(entry *maniEntry, _ int) (f bool) {
+			if entry.Version == latestVer {
+				f = true
+			}
+			return
+		})
+	} else {
+		latestEntries = lo.FilterMap(patterns, func(pattern string, _ int) (entry *maniEntry, f bool) {
+			entry = manifest.lookup(pattern)
+			if entry == nil {
+				Throw(errors.New(fmt.Sprintf("command “%s” is not defined", pattern)))
+			}
+			if entry.Version == latestVer {
+				f = true
+			}
+			return
+		})
+	}
+	for _, entry := range latestEntries {
+		entry.LockedVersion = V(queryVersion(entry.Pkg))
+	}
+	V0(manifest.saveLockfile())
+	return
 }
