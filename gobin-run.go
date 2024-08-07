@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -166,11 +167,17 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 }
 
 // EnsureInstalled ensures that the program package is installed.
-func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPath string, err error) {
+func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
 	cmdPath := filepath.Join(gobinPath, pkgBase)
 	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
+	if tags != "" {
+		hash := sha1.New()
+		hash.Write([]byte(tags))
+		sevenDigits := fmt.Sprintf("%x", hash.Sum(nil))[:7]
+		cmdPkgVerPath += "-" + sevenDigits
+	}
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
 		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", pkgPath, ver))
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
@@ -186,7 +193,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string) (cmdPkgVerPat
 		if err != nil {
 			return
 		}
-		v0(os.Link(cmdPkgVerPath, cmdPath))
+		v0(os.Symlink(cmdPkgVerPath, cmdPath))
 	}
 	return
 }
@@ -197,6 +204,7 @@ func run() {
 	pkgVerLockMap := v(PkgVerLockMap(confDirPath))
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
+	tags := ""
 	ver, ok := pkgVerLockMap[pkgPath]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
@@ -212,7 +220,7 @@ func run() {
 		defer (func() { v0(writer.Close()) })()
 		_ = v(writer.WriteString(fmt.Sprintf("%s@%s\n", pkgPath, ver)))
 	}
-	cmdPkgVerPath := v(EnsureInstalled(gobinPath, pkgPath, ver))
+	cmdPkgVerPath := v(EnsureInstalled(gobinPath, pkgPath, ver, tags))
 	cmd := exec.Command(cmdPkgVerPath, append([]string{"run"}, os.Args[1:]...)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
