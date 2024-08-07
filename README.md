@@ -36,7 +36,13 @@ $ echo golang.org/x/tools/cmd/stringer@v0.11 >> Gobinfile
 $ echo github.com/sqlc-dev/sqlc/cmd/sqlc@latest >> Gobinfile
 ```
 
-or record the module of the program package to `go.mod` file as described in “[Go Wiki: Go Modules - The Go Programming Language](https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module)”:
+You can write additional information to `Gobinfile` entries as follows:
+
+```text
+github.com/sqlc-dev/sqlc/cmd/sqlc@latest tags=foo,bar requires=command1,command2 # comment. “tags” for build tags, “requires” for the commands required to run the command.
+```
+
+Or record the module of the program package to `go.mod` file as described in “[Go Wiki: Go Modules - The Go Programming Language](https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module)”:
 
 ```go
 //go:build tools
@@ -76,10 +82,3 @@ You can use `gobin` as a library mainly in task-runner written in Go.
 ```go
 TBD
 ```
-
-## Todo
-
-* Version switching of invoked gobin itself
-* Upgrading program versions
-* Dependency between programs
-* Support build tags
