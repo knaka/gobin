@@ -154,6 +154,9 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		divs := strings.SplitN(line, "@", 2)
 		lockList[divs[0]] = divs[1]
 	}
