@@ -196,7 +196,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 		if err != nil {
 			return
 		}
-		v0(os.Symlink(pkgBaseVer, pkgBase))
+		v0(os.Symlink(pkgBaseVer, cmdPath))
 	}
 	return
 }
