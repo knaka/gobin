@@ -174,13 +174,13 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
 	cmdPath := filepath.Join(gobinPath, pkgBase)
-	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
 	if tags != "" {
 		hash := sha1.New()
 		hash.Write([]byte(tags))
 		sevenDigits := fmt.Sprintf("%x", hash.Sum(nil))[:7]
-		cmdPkgVerPath += "-" + sevenDigits
+		pkgBaseVer += "-" + sevenDigits
 	}
+	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
 		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", pkgPath, ver))
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
@@ -196,7 +196,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 		if err != nil {
 			return
 		}
-		v0(os.Symlink(cmdPkgVerPath, cmdPath))
+		v0(os.Symlink(pkgBaseVer, pkgBase))
 	}
 	return
 }
