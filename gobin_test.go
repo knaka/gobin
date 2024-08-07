@@ -2,6 +2,7 @@ package gobin
 
 import (
 	"fmt"
+	"github.com/knaka/go-testutils/fs"
 	"github.com/knaka/gobin/minlib"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -26,8 +27,32 @@ func Test_goModModules(t *testing.T) {
 	assert.Nil(t, goMod.requiredModuleByPkg("github.com/knaka/go-util"))
 }
 
+// canonAbs returns the canonical absolute path of the given value.
+func canonAbs(s string) (ret string, err error) {
+	ret, err = filepath.Abs(s)
+	if err != nil {
+		return
+	}
+	ret, err = filepath.EvalSymlinks(ret)
+	if err != nil {
+		return
+	}
+	ret = filepath.Clean(ret)
+	return
+}
+
 func Test_parseManifest(t *testing.T) {
-	confDirPath := filepath.Join("minlib", "testdata", "foo", "bar")
+	tempDir := V(canonAbs(V(os.MkdirTemp("", "gobin-test"))))
+	t.Cleanup(func() { Ignore(os.RemoveAll(tempDir)) })
+
+	testdataDirPath := filepath.Join(tempDir, "minlib", "testdata")
+	V0(fs.CopyDir(testdataDirPath, filepath.Join("minlib", "testdata")))
+	V0(fs.CopyFile(
+		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
+		filepath.Join(testdataDirPath, "foo", "bar", "go.mod.orig"),
+	))
+
+	confDirPath := filepath.Join(testdataDirPath, "foo", "bar")
 	manifest := V(parseManifest(confDirPath))
 	assert.NotNil(t, manifest)
 
@@ -46,9 +71,6 @@ func Test_parseManifest(t *testing.T) {
 	entry.Version = "v4.2.0"
 	entry = manifest.lookup("github.com/hairyhenderson/gomplate/v4/cmd/gomplate")
 	assert.Equal(t, "v4.2.0", entry.Version)
-
-	tempDir := V(os.MkdirTemp("", "gobin"))
-	t.Cleanup(func() { V0(os.RemoveAll(tempDir)) })
 
 	newLockPath := filepath.Join(tempDir, maniLockBase)
 	V0(manifest.saveLockfileAs(newLockPath))

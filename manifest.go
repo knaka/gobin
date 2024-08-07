@@ -97,6 +97,9 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 		gobinManifest.pkgMapVer = V(minlib.PkgVerLockMap(dirPath))
 	}
 	for _, entry := range gobinManifest.entries {
+		if entry.Version != "" {
+			continue
+		}
 		if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
 			entry.Version = lockedVer
 		}

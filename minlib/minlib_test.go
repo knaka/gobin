@@ -1,6 +1,7 @@
 package minlib
 
 import (
+	"github.com/knaka/go-testutils/fs"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
@@ -12,8 +13,14 @@ import (
 func TestGetConfPath(t *testing.T) {
 	defaultTempDir := os.TempDir()
 	Ignore(os.Remove(filepath.Join(defaultTempDir, "go.mod")))
-	tempDir := V(os.MkdirTemp(defaultTempDir, "gobin-test"))
+	tempDir := V(canonAbs(V(os.MkdirTemp(defaultTempDir, "gobin-test"))))
 	t.Cleanup(func() { Ignore(os.RemoveAll(tempDir)) })
+	testdataDirPath := filepath.Join(tempDir, "testdata")
+	V0(fs.CopyDir(testdataDirPath, filepath.Join("testdata")))
+	V0(fs.CopyFile(
+		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
+		filepath.Join(testdataDirPath, "foo", "bar", "go.mod.orig"),
+	))
 	type args struct {
 		opts []ConfDirPathOption
 	}
@@ -34,19 +41,18 @@ func TestGetConfPath(t *testing.T) {
 		{
 			"Test go.mod",
 			args{[]ConfDirPathOption{WithInitialDir(filepath.Join(
-				".",
-				"testdata",
+				testdataDirPath,
 				"foo",
 				"bar",
 				"baz",
 			))}},
 			V(filepath.Abs(filepath.Join(
-				"testdata",
+				testdataDirPath,
 				"foo",
 				"bar",
 			))),
 			V(filepath.Abs(filepath.Join(
-				"testdata",
+				testdataDirPath,
 				"foo",
 				"bar",
 				".gobin",

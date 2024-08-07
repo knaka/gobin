@@ -38,6 +38,7 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
+		Debugger()
 		return gobin.RunEx(subArgs,
 			gobin.WithStdin(os.Stdin),
 			gobin.WithStdout(os.Stdout),
