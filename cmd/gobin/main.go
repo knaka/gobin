@@ -25,7 +25,8 @@ func main() {
 	shouldHelp := flag.Bool("h", false, "Show help")
 	global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
-	if os.Getenv("DEBUG") == "" && os.Getenv("NOSWITCH") == "" {
+	if os.Getenv("NOSWITCH") == "" {
+		Debugger()
 		// Switch to the locally installed gobin command.
 		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
 		if err_ != nil {

@@ -98,19 +98,23 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 	if _, err_ := os.Stat(gobinManifest.lockPath); err_ == nil {
 		gobinManifest.pkgMapVer = V(minlib.PkgVerLockMap(dirPath))
 	}
-	shouldSave := false
 	for _, entry := range gobinManifest.entries {
 		if entry.Version != latestVer {
 			entry.LockedVersion = entry.Version
-			shouldSave = true
 		} else if lockedVer, ok := gobinManifest.pkgMapVer[entry.Pkg]; ok {
 			entry.LockedVersion = lockedVer
 		} else {
 			entry.LockedVersion = latestVer
 		}
 	}
-	if shouldSave {
-		V0(gobinManifest.saveLockfile())
+	for pkg, locakedVer := range gobinManifest.pkgMapVer {
+		if gobinManifest.lookup(pkg) == nil {
+			gobinManifest.entries = append(gobinManifest.entries, &maniEntry{
+				Pkg:           pkg,
+				Version:       latestVer,
+				LockedVersion: locakedVer,
+			})
+		}
 	}
 	return
 }
