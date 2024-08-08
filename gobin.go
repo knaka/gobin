@@ -1,12 +1,5 @@
 package gobin
 
-//go:generate_input gen-bootstrap/* minlib/minlib.go
-//go:generate_output gobin-run.go
-//go:generate go run ./gen-bootstrap
-
-// //go:generate go run gobin-run.go gomplate --help
-// //go:generate go run gobin-run.go golang.org/x/tools/cmd/stringer -h
-
 import (
 	"encoding/json"
 	"errors"
@@ -20,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -299,7 +293,13 @@ func UpdateEx(patterns []string, opts ...Option) (err error) {
 		})
 	}
 	for _, entry := range latestEntries {
+		oldVersion := entry.LockedVersion
 		entry.LockedVersion = V(queryVersion(entry.Pkg))
+		if oldVersion != entry.LockedVersion {
+			log.Printf("Updated %s from %s to %s\n", entry.Pkg, oldVersion, entry.LockedVersion)
+		} else {
+			log.Printf("No update for %s@%s -> %s\n", entry.Pkg, entry.Version, entry.LockedVersion)
+		}
 	}
 	V0(manifest.saveLockfile())
 	return
@@ -324,5 +324,8 @@ func List() (ret []*ListEntry, err error) {
 			LockedVersion: entry.LockedVersion,
 		})
 	}
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].Pkg < ret[j].Pkg
+	})
 	return
 }
