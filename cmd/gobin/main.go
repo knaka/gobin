@@ -13,28 +13,36 @@ import (
 	"os"
 )
 
-func help() {
-	V0(fmt.Fprintf(os.Stderr, `gobin is a tool for managing Go binaries.
-
-Usage: gobin [options] <install|run|update|help> [args]
-`))
-}
-
 func main() {
 	var err error
-	verbose := flag.Bool("v", false, "Verbose output")
-	silent := flag.Bool("s", false, "Silent output")
-	shouldHelp := flag.Bool("h", false, "Show help")
-	global := flag.Bool("g", false, "Install globally")
+	verbose := flag.Bool("v", false, "Verbose output.")
+	silent := flag.Bool("s", false, "Silent output.")
+	shouldHelp := flag.Bool("h", false, "Show help.")
+	global := flag.Bool("g", false, "Install globally.")
+	flag.Usage = func() {
+		V0(fmt.Fprintln(os.Stderr, `Usage: gobin [options] <command> [<args>...]
+
+Options:`))
+		flag.PrintDefaults()
+		V0(fmt.Fprintln(os.Stderr))
+		V0(fmt.Fprintln(os.Stderr, `Commands:
+  list                    List packages listed in the manifest file “Gobinfile”.
+  run <name> [<args>...]  Run the specified program package.
+  install [<name>...]     Install the specified package(s).
+  update [<name>...]      Update the specified “@latest” program package(s). If no package is specified, update all packages.
+
+Environment variables:
+  NOSWITCH                If set, not switch to the locally installed (in “.gobin” directory) gobin command.`))
+	}
 	flag.Parse()
 	vlog.SetVerbose(*verbose)
 	log.SetSilent(*silent)
 	if *shouldHelp {
-		help()
+		flag.Usage()
 		os.Exit(0)
 	}
 	if flag.NArg() == 0 {
-		help()
+		flag.Usage()
 		os.Exit(1)
 	}
 	if os.Getenv("NOSWITCH") == "" {
@@ -79,14 +87,21 @@ func main() {
 			stdlog.Fatalf("Error: %+v", err_)
 		}
 		for _, entry := range l {
-			fmt.Printf("%s@%s -> %s\n", entry.Pkg, entry.Version, entry.LockedVersion)
+			fmt.Printf("%s@%s -> %s\n",
+				entry.Pkg,
+				entry.Version,
+				Ternary(entry.LockedVersion == "" || entry.LockedVersion == "latest",
+					"?",
+					entry.LockedVersion,
+				),
+			)
 		}
 	case "help":
-		help()
+		flag.Usage()
 		os.Exit(0)
 	default:
-		V0(fmt.Errorf("unknown subcommand: %s", subCmd))
-		help()
+		V0(fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n", subCmd))
+		flag.Usage()
 		os.Exit(1)
 	}
 	if err != nil {
