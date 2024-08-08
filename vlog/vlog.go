@@ -8,34 +8,39 @@ import (
 	"runtime"
 )
 
-var std *stdlog.Logger
+var logger *stdlog.Logger
 
-func Default() *stdlog.Logger {
-	return std
+//goland:noinspection GoUnusedExportedFunction
+func Logger() *stdlog.Logger {
+	return logger
 }
 
 func init() {
 	_, thisFilePath, _, _ := runtime.Caller(0)
 	prefix := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath))) + ": "
-	std = stdlog.New(io.Discard, prefix, stdlog.LstdFlags)
+	logger = stdlog.New(io.Discard, prefix, stdlog.LstdFlags)
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Println(v ...interface{}) {
-	std.Println(v...)
+	logger.Println(v...)
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Printf(format string, v ...interface{}) {
-	std.Printf(format, v...)
+	logger.Printf(format, v...)
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func SetVerbose(f bool) {
 	if f {
-		std.SetOutput(os.Stderr)
+		logger.SetOutput(os.Stderr)
 	} else {
-		std.SetOutput(io.Discard)
+		logger.SetOutput(io.Discard)
 	}
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Verbose() bool {
-	return std.Writer() == os.Stderr
+	return logger.Writer() == os.Stderr
 }

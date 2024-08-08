@@ -1,12 +1,13 @@
 package log
 
 import (
-	"os"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestPrintln(t *testing.T) {
-	SetOutput(os.Stderr)
+	SetSilent(false)
+	assert.False(t, Silent())
 	type args struct {
 		v []interface{}
 	}

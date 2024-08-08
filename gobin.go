@@ -165,7 +165,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 			goModDef := V(parseGoMod(confDirPath))
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
-				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Default(), vlog.Default())))
+				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Logger(), vlog.Logger())))
 				continue
 			}
 		}
@@ -178,7 +178,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 				entry.LockedVersion = V(queryVersion(entry.Pkg))
 				shouldSave = true
 			}
-			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags, log.Default(), vlog.Default())))
+			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags, log.Logger(), vlog.Logger())))
 			if shouldSave {
 				V0(manifest.saveLockfile())
 			}
