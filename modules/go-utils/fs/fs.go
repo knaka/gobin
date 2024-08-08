@@ -75,8 +75,14 @@ func Copy(src string, dst string) (err error) {
 	if stat, err_ := os.Stat(src); err_ != nil {
 		return err_
 	} else if stat.IsDir() {
+		if _, err_ := os.Stat(dst); err_ == nil {
+			Ignore(os.RemoveAll(dst))
+		}
 		return copyDir(src, dst)
 	} else {
+		if _, err_ := os.Stat(dst); err_ == nil {
+			Ignore(os.RemoveAll(dst))
+		}
 		return copyFile(src, dst)
 	}
 }
