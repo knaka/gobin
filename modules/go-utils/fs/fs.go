@@ -81,6 +81,15 @@ func Copy(src string, dst string) (err error) {
 	}
 }
 
+// Move moves a file or a directory.
+func Move(src string, dst string) (err error) {
+	err = Copy(src, dst)
+	if err != nil {
+		return
+	}
+	return os.RemoveAll(src)
+}
+
 func Touch(path string) (err error) {
 	_, err = os.Stat(path)
 	if err != nil {
