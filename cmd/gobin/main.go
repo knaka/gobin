@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	. "github.com/knaka/go-utils"
+	fsutils "github.com/knaka/go-utils/fs"
 	"github.com/knaka/gobin"
 	"github.com/knaka/gobin/log"
+	"github.com/knaka/gobin/minlib"
 	stdlog "log"
 	"os"
 )
@@ -17,18 +19,36 @@ Usage: gobin [options] <install|run|update|help> [args]
 `))
 }
 
-func Main() (err error) {
-	defer Catch(&err)
+func main() {
+	var err error
 	verbose := flag.Bool("v", false, "Verbose output")
 	shouldHelp := flag.Bool("h", false, "Show help")
 	global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
+	if os.Getenv("DEBUG") == "" && os.Getenv("NOSWITCH") == "" {
+		// Switch to the locally installed gobin command.
+		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
+		if err_ != nil {
+			stdlog.Fatalf("Error: %+v", err)
+		}
+		if V(fsutils.CanonPath(os.Args[0])) != V(fsutils.CanonPath(cmdPath)) {
+			V0(fmt.Fprintf(os.Stderr, "Switching to the locally installed gobin command: %s\n", cmdPath))
+			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
+			if err_ == nil {
+				os.Exit(0)
+			}
+			if errExec != nil {
+				os.Exit(errExec.ExitCode())
+			}
+			stdlog.Fatalf("Error: %+v", err_)
+		}
+	}
 	if *verbose {
 		log.SetOutput(os.Stderr)
 	}
 	if *shouldHelp {
 		help()
-		return nil
+		os.Exit(0)
 	}
 	if flag.NArg() == 0 {
 		help()
@@ -38,8 +58,7 @@ func Main() (err error) {
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		Debugger()
-		return gobin.RunEx(subArgs,
+		err = gobin.RunEx(subArgs,
 			gobin.WithStdin(os.Stdin),
 			gobin.WithStdout(os.Stdout),
 			gobin.WithStderr(os.Stderr),
@@ -47,28 +66,25 @@ func Main() (err error) {
 			gobin.Verbose(*verbose),
 		)
 	case "install":
-		return gobin.InstallEx(subArgs,
+		err = gobin.InstallEx(subArgs,
 			gobin.Global(*global),
 			gobin.Verbose(*verbose),
 		)
 	case "update":
-		return gobin.UpdateEx(subArgs,
+		err = gobin.UpdateEx(subArgs,
 			gobin.Global(*global),
 			gobin.Verbose(*verbose),
 		)
 	case "help":
 		help()
-		return nil
+		os.Exit(0)
 	default:
 		V0(fmt.Errorf("unknown subcommand: %s", subCmd))
 		help()
 		os.Exit(1)
 	}
-	return
-}
-
-func main() {
-	if err := Main(); err != nil {
+	if err != nil {
 		stdlog.Fatalf("Error: %+v", err)
 	}
+	return
 }

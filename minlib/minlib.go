@@ -212,13 +212,11 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 	return
 }
 
-//goland:noinspection GoUnusedFunction
-func run() {
+func EnsureGobinCmdInstalled() (cmdPath string, err error) {
 	confDirPath, gobinPath := v2(ConfDirPath())
 	pkgVerLockMap := v(PkgVerLockMap(confDirPath))
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
-	tags := ""
 	ver, ok := pkgVerLockMap[pkgPath]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
@@ -234,18 +232,28 @@ func run() {
 		defer (func() { v0(writer.Close()) })()
 		_ = v(writer.WriteString(fmt.Sprintf("%s@%s\n", pkgPath, ver)))
 	}
-	cmdPkgVerPath := v(EnsureInstalled(gobinPath, pkgPath, ver, tags))
-	cmd := exec.Command(cmdPkgVerPath, append([]string{"run"}, os.Args[1:]...)...)
+	return EnsureInstalled(gobinPath, pkgPath, ver, "")
+}
+
+func RunCommand(name string, arg ...string) (execErr *exec.ExitError, err error) {
+	cmd := exec.Command(name, arg...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
+	err = cmd.Run()
+	errors.As(err, &execErr)
+	return
+}
+
+//goland:noinspection GoUnusedFunction
+func run() {
+	gobinCmdPath := v(EnsureGobinCmdInstalled())
+	errExec, err := RunCommand(gobinCmdPath, append([]string{"run"}, os.Args[1:]...)...)
 	if err == nil {
 		os.Exit(0)
 	}
-	var execErr *exec.ExitError
-	if errors.As(err, &execErr) {
-		os.Exit(execErr.ExitCode())
+	if errExec != nil {
+		os.Exit(errExec.ExitCode())
 	}
 	log.Fatalf("Error: %+v", err)
 }

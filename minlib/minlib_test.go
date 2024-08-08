@@ -4,6 +4,7 @@ import (
 	fsutils "github.com/knaka/go-utils/fs"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -111,4 +112,35 @@ func Test_manifestLockModules(t *testing.T) {
 	lockList := V(PkgVerLockMap(confDirPath))
 	assert.Equal(t, "v0.23.0", lockList["golang.org/x/tools/cmd/stringer"])
 	assert.Equal(t, "v4.1.0", lockList["github.com/hairyhenderson/gomplate/v4/cmd/gomplate"])
+}
+
+func TestRunCommand(t *testing.T) {
+	type args struct {
+		name string
+		arg  []string
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantExecErr *exec.ExitError
+		wantErr     assert.ErrorAssertionFunc
+	}{
+		{
+			"Test",
+			args{"true", []string{}},
+			nil,
+			assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotExecErr, err := RunCommand(tt.args.name, tt.args.arg...)
+			_ = gotExecErr
+			_ = err
+			//if !tt.wantErr(t, err, fmt.Sprintf("RunCommand(%v, %v)", tt.args.name, tt.args.arg...)) {
+			//	return
+			//}
+			//assert.Equalf(t, tt.wantExecErr, gotExecErr, "RunCommand(%v, %v)", tt.args.name, tt.args.arg...)
+		})
+	}
 }
