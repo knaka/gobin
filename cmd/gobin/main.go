@@ -26,14 +26,15 @@ func main() {
 	global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
 	if os.Getenv("NOSWITCH") == "" {
-		Debugger()
 		// Switch to the locally installed gobin command.
 		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
 		if err_ != nil {
 			stdlog.Fatalf("Error: %+v", err)
 		}
-		if V(fsutils.CanonPath(os.Args[0])) != V(fsutils.CanonPath(cmdPath)) {
-			V0(fmt.Fprintf(os.Stderr, "Switching to the locally installed gobin command: %s\n", cmdPath))
+		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
+			if *verbose {
+				V0(fmt.Fprintf(os.Stderr, "Switching to the locally installed gobin command: %s\n", cmdPath))
+			}
 			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
 			if err_ == nil {
 				os.Exit(0)
