@@ -116,6 +116,7 @@ func candidateModules(pkg string) (ret []string, err error) {
 }
 
 func queryVersion(pkg string) (version string, err error) {
+	log.Printf("Querying version for %s\n", pkg)
 	for _, candidate := range V(candidateModules(pkg)) {
 		cmd := exec.Command("go", "list", "-m",
 			"--json", fmt.Sprintf("%s@%s", candidate, latestVer))
@@ -153,7 +154,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 			goModDef := V(parseGoMod(confDirPath))
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
-				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "")))
+				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Logger)))
 				continue
 			}
 		}
@@ -166,7 +167,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 				entry.LockedVersion = V(queryVersion(entry.Pkg))
 				shouldSave = true
 			}
-			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags)))
+			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags, log.Logger)))
 			if shouldSave {
 				V0(manifest.saveLockfile())
 			}

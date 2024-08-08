@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 	"os/exec"
 	"path"
@@ -181,7 +181,7 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 }
 
 // EnsureInstalled ensures that the program package is installed.
-func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) (cmdPkgVerPath string, err error) {
+func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, log *stdlog.Logger) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
 	cmdPath := filepath.Join(gobinPath, pkgBase)
@@ -193,6 +193,9 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 	}
 	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
+		if log != nil {
+			log.Printf("Installing %s@%s\n", pkgPath, ver)
+		}
 		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", pkgPath, ver))
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
 		cmd.Stdout = os.Stderr
@@ -232,7 +235,7 @@ func EnsureGobinCmdInstalled() (cmdPath string, err error) {
 		defer (func() { v0(writer.Close()) })()
 		_ = v(writer.WriteString(fmt.Sprintf("%s@%s\n", pkgPath, ver)))
 	}
-	return EnsureInstalled(gobinPath, pkgPath, ver, "")
+	return EnsureInstalled(gobinPath, pkgPath, ver, "", nil)
 }
 
 func RunCommand(name string, arg ...string) (execErr *exec.ExitError, err error) {
@@ -255,5 +258,5 @@ func run() {
 	if errExec != nil {
 		os.Exit(errExec.ExitCode())
 	}
-	log.Fatalf("Error: %+v", err)
+	stdlog.Fatalf("Error: %+v", err)
 }

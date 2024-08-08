@@ -25,26 +25,6 @@ func main() {
 	shouldHelp := flag.Bool("h", false, "Show help")
 	global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
-	if os.Getenv("NOSWITCH") == "" {
-		// Switch to the locally installed gobin command.
-		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
-		if err_ != nil {
-			stdlog.Fatalf("Error: %+v", err)
-		}
-		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
-			if *verbose {
-				V0(fmt.Fprintf(os.Stderr, "Switching to the locally installed gobin command: %s\n", cmdPath))
-			}
-			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
-			if err_ == nil {
-				os.Exit(0)
-			}
-			if errExec != nil {
-				os.Exit(errExec.ExitCode())
-			}
-			stdlog.Fatalf("Error: %+v", err_)
-		}
-	}
 	if *verbose {
 		log.SetOutput(os.Stderr)
 	}
@@ -55,6 +35,24 @@ func main() {
 	if flag.NArg() == 0 {
 		help()
 		os.Exit(1)
+	}
+	if os.Getenv("NOSWITCH") == "" {
+		// Switch to the locally installed gobin command.
+		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
+		if err_ != nil {
+			stdlog.Fatalf("Error: %+v", err)
+		}
+		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
+			log.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
+			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
+			if err_ == nil {
+				os.Exit(0)
+			}
+			if errExec != nil {
+				os.Exit(errExec.ExitCode())
+			}
+			stdlog.Fatalf("Error: %+v", err_)
+		}
 	}
 	subCmd := flag.Arg(0)
 	subArgs := flag.Args()[1:]

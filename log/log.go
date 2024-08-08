@@ -7,22 +7,22 @@ import (
 	"runtime"
 )
 
-var logger *stdlog.Logger
+var Logger *stdlog.Logger
 
 func init() {
 	_, thisFilePath, _, _ := runtime.Caller(0)
-	prefix := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath))) + " "
-	logger = stdlog.New(io.Discard, prefix, stdlog.LstdFlags)
+	prefix := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath))) + ": "
+	Logger = stdlog.New(io.Discard, prefix, stdlog.LstdFlags)
 }
 
 func Println(v ...interface{}) {
-	logger.Println(v...)
+	Logger.Println(v...)
 }
 
 func Printf(format string, v ...interface{}) {
-	logger.Printf(format, v...)
+	Logger.Printf(format, v...)
 }
 
 func SetOutput(w io.Writer) {
-	logger.SetOutput(w)
+	Logger.SetOutput(w)
 }
