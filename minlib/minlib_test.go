@@ -1,7 +1,7 @@
 package minlib
 
 import (
-	"github.com/knaka/go-testutils/fs"
+	fsutils "github.com/knaka/go-utils/fs"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
@@ -14,12 +14,18 @@ func TestGetConfPath(t *testing.T) {
 	defaultTempDir := os.TempDir()
 	Ignore(os.Remove(filepath.Join(defaultTempDir, "go.mod")))
 	tempDir := V(canonAbs(V(os.MkdirTemp(defaultTempDir, "gobin-test"))))
+	noGoMod := filepath.Join(tempDir, "no-go-mod")
+	V0(os.MkdirAll(noGoMod, 0755))
+	hasGoMod := filepath.Join(tempDir, "has-go-mod", "foo", "bar")
+	V0(os.MkdirAll(hasGoMod, 0755))
+	goModDir := filepath.Join(tempDir, "has-go-mod", "foo")
+	V0(fsutils.Touch(filepath.Join(goModDir, "go.mod")))
 	t.Cleanup(func() { Ignore(os.RemoveAll(tempDir)) })
 	testdataDirPath := filepath.Join(tempDir, "testdata")
-	V0(fs.CopyDir(testdataDirPath, filepath.Join("testdata")))
-	V0(fs.CopyFile(
-		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
+	V0(fsutils.Copy(filepath.Join("testdata"), testdataDirPath))
+	V0(fsutils.Move(
 		filepath.Join(testdataDirPath, "foo", "bar", "go.mod.orig"),
+		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
 	))
 	type args struct {
 		opts []ConfDirPathOption
@@ -34,8 +40,8 @@ func TestGetConfPath(t *testing.T) {
 		{
 			"This project's go.mod file",
 			args{},
-			V(filepath.Abs(filepath.Join(".."))),
-			V(filepath.Abs(filepath.Join("..", ".gobin"))),
+			V(fsutils.CanonPath(filepath.Join(".."))),
+			V(fsutils.CanonPath(filepath.Join("..", ".gobin"))),
 			false,
 		},
 		{
@@ -49,12 +55,10 @@ func TestGetConfPath(t *testing.T) {
 			V(filepath.Abs(filepath.Join(
 				testdataDirPath,
 				"foo",
-				"bar",
 			))),
 			V(filepath.Abs(filepath.Join(
 				testdataDirPath,
 				"foo",
-				"bar",
 				".gobin",
 			))),
 			false,
@@ -62,11 +66,20 @@ func TestGetConfPath(t *testing.T) {
 		{
 			"No go.mod",
 			args{
-				[]ConfDirPathOption{WithInitialDir(filepath.Join(tempDir))},
+				[]ConfDirPathOption{WithInitialDir(noGoMod)},
 			},
 			"",
 			"",
 			true,
+		},
+		{
+			"Has go.mod",
+			args{
+				[]ConfDirPathOption{WithInitialDir(hasGoMod)},
+			},
+			goModDir,
+			filepath.Join(goModDir, ".gobin"),
+			false,
 		},
 		{
 			"Global",
@@ -94,8 +107,7 @@ func TestGetConfPath(t *testing.T) {
 }
 
 func Test_manifestLockModules(t *testing.T) {
-	//confDirPath, _ := V2(ConfDirPath())
-	confDirPath := filepath.Join("testdata", "foo", "bar")
+	confDirPath := filepath.Join("testdata", "foo")
 	lockList := V(PkgVerLockMap(confDirPath))
 	assert.Equal(t, "v0.23.0", lockList["golang.org/x/tools/cmd/stringer"])
 	assert.Equal(t, "v4.1.0", lockList["github.com/hairyhenderson/gomplate/v4/cmd/gomplate"])

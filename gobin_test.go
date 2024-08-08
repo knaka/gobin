@@ -2,7 +2,7 @@ package gobin
 
 import (
 	"fmt"
-	"github.com/knaka/go-testutils/fs"
+	fsutils "github.com/knaka/go-utils/fs"
 	"github.com/knaka/gobin/minlib"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -46,13 +46,13 @@ func Test_parseManifest(t *testing.T) {
 	t.Cleanup(func() { Ignore(os.RemoveAll(tempDir)) })
 
 	testdataDirPath := filepath.Join(tempDir, "minlib", "testdata")
-	V0(fs.CopyDir(testdataDirPath, filepath.Join("minlib", "testdata")))
-	V0(fs.CopyFile(
-		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
-		filepath.Join(testdataDirPath, "foo", "bar", "go.mod.orig"),
+	V0(fsutils.Copy(filepath.Join("minlib", "testdata"), testdataDirPath))
+	V0(fsutils.Move(
+		filepath.Join(testdataDirPath, "foo2", "bar", "go.mod.orig"),
+		filepath.Join(testdataDirPath, "foo2", "bar", "go.mod"),
 	))
 
-	confDirPath := filepath.Join(testdataDirPath, "foo", "bar")
+	confDirPath := filepath.Join(testdataDirPath, "foo2", "bar")
 	manifest := V(parseManifest(confDirPath))
 	assert.NotNil(t, manifest)
 
