@@ -5,8 +5,7 @@ go 1.22.4
 toolchain go1.22.5
 
 require (
-	github.com/knaka/go-testutils v0.0.2024080704
-	github.com/knaka/go-utils v0.0.2024080520
+	github.com/knaka/go-utils v0.0.2024080812
 	github.com/samber/lo v1.46.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/mod v0.19.0
@@ -25,5 +24,3 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/knaka/go-utils => ./modules/go-utils
