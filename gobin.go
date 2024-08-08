@@ -1,10 +1,5 @@
 package gobin
 
-import (
-	"github.com/samber/lo"
-	"io"
-)
-
 //go:generate_input gen-bootstrap/* minlib/minlib.go
 //go:generate_output gobin-run.go
 //go:generate go run ./gen-bootstrap
@@ -19,6 +14,9 @@ import (
 	. "github.com/knaka/go-utils"
 	"github.com/knaka/gobin/log"
 	"github.com/knaka/gobin/minlib"
+	"github.com/knaka/gobin/vlog"
+	"github.com/samber/lo"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +32,7 @@ type installParams struct {
 	stdout          io.Writer
 	stderr          io.Writer
 	verbose         bool
+	silent          bool
 	global          bool
 }
 
@@ -55,10 +54,22 @@ func WithDir(dir string) Option {
 	}
 }
 
+// Verbose sets the verbose flag to enable verbose log output.
+//
 //goland:noinspection GoUnusedExportedFunction
 func Verbose(f bool) Option {
 	return func(params *installParams) (err error) {
 		params.verbose = f
+		return
+	}
+}
+
+// Silent sets the silent flag to suppress normal log output.
+//
+//goland:noinspection GoUnusedExportedFunction
+func Silent(f bool) Option {
+	return func(params *installParams) (err error) {
+		params.silent = f
 		return
 	}
 }
@@ -154,7 +165,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 			goModDef := V(parseGoMod(confDirPath))
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
-				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Logger)))
+				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Default(), vlog.Default())))
 				continue
 			}
 		}
@@ -167,7 +178,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 				entry.LockedVersion = V(queryVersion(entry.Pkg))
 				shouldSave = true
 			}
-			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags, log.Logger)))
+			cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, entry.Pkg, entry.LockedVersion, entry.Tags, log.Default(), vlog.Default())))
 			if shouldSave {
 				V0(manifest.saveLockfile())
 			}
@@ -185,9 +196,8 @@ func InstallEx(patterns []string, opts ...Option) (err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	if params.verbose {
-		log.SetOutput(params.stderr)
-	}
+	log.SetSilent(params.silent)
+	vlog.SetVerbose(params.verbose)
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
@@ -211,9 +221,7 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	if params.verbose {
-		log.SetOutput(params.stderr)
-	}
+	vlog.SetVerbose(params.verbose)
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
@@ -264,9 +272,7 @@ func UpdateEx(patterns []string, opts ...Option) (err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	if params.verbose {
-		log.SetOutput(params.stderr)
-	}
+	vlog.SetVerbose(params.verbose)
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
@@ -296,5 +302,27 @@ func UpdateEx(patterns []string, opts ...Option) (err error) {
 		entry.LockedVersion = V(queryVersion(entry.Pkg))
 	}
 	V0(manifest.saveLockfile())
+	return
+}
+
+type ListEntry struct {
+	Pkg           string
+	Version       string
+	LockedVersion string
+}
+
+func List() (ret []*ListEntry, err error) {
+	confDirPath, _ := V2(minlib.ConfDirPath())
+	manifest, err := parseManifest(confDirPath)
+	if err != nil {
+		return
+	}
+	for _, entry := range manifest.Entries() {
+		ret = append(ret, &ListEntry{
+			Pkg:           entry.Pkg,
+			Version:       entry.Version,
+			LockedVersion: entry.LockedVersion,
+		})
+	}
 	return
 }

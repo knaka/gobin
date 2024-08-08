@@ -1,4 +1,4 @@
-package log
+package vlog
 
 import (
 	"io"
@@ -17,7 +17,7 @@ func Default() *stdlog.Logger {
 func init() {
 	_, thisFilePath, _, _ := runtime.Caller(0)
 	prefix := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath))) + ": "
-	std = stdlog.New(os.Stderr, prefix, stdlog.LstdFlags)
+	std = stdlog.New(io.Discard, prefix, stdlog.LstdFlags)
 }
 
 func Println(v ...interface{}) {
@@ -28,14 +28,14 @@ func Printf(format string, v ...interface{}) {
 	std.Printf(format, v...)
 }
 
-func SetSilent(f bool) {
+func SetVerbose(f bool) {
 	if f {
-		std.SetOutput(io.Discard)
-	} else {
 		std.SetOutput(os.Stderr)
+	} else {
+		std.SetOutput(io.Discard)
 	}
 }
 
-func Silent() bool {
-	return std.Writer() == io.Discard
+func Verbose() bool {
+	return std.Writer() == os.Stderr
 }

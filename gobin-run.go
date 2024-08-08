@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 	"os/exec"
 	"path"
@@ -94,11 +94,12 @@ func isRootDir(dir string) bool {
 
 type PkgVerLockMapT map[string]string
 
+const ManifestFileBase = "Gobinfile"
 const ManifestLockFileBase = "Gobinfile-lock"
 const goModFileBase = "go.mod"
 const gobinBase = ".gobin"
 
-// ConfDirPath returns the configuration directory path (and the $GOBIN path).
+// ConfDirPath returns the configuration directory path. If the global option is true, it returns the global (home)  configuration directory path. This returns the directory which contains the manifest file. If no manifest file is found in any parent directory, it returns the directory which contains the go.mod file.
 func ConfDirPath(opts ...ConfDirPathOption) (
 	confDirPath string,
 	gobinPath string,
@@ -129,13 +130,29 @@ func ConfDirPath(opts ...ConfDirPathOption) (
 			return
 		}
 	}
+	goModDirPath := ""
 	for {
+		// Record the directory which contains the go.mod file.
 		if stat, errSub := os.Stat(filepath.Join(confDirPath, goModFileBase)); errSub == nil && !stat.IsDir() {
+			if goModDirPath == "" {
+				goModDirPath = confDirPath
+			}
+		}
+		// When the manifest file is found, return the directory.
+		if stat, err_ := os.Stat(filepath.Join(confDirPath, ManifestFileBase)); err_ == nil && !stat.IsDir() {
+			break
+		}
+		if stat, err_ := os.Stat(filepath.Join(confDirPath, ManifestLockFileBase)); err_ == nil && stat.IsDir() {
 			break
 		}
 		confDirPath = filepath.Dir(confDirPath)
 		if isRootDir(confDirPath) {
-			confDirPath, gobinPath, err = "", "", errors.New("go.mod not found")
+			// If no manifest file is found in any parent directory, return the directory which contains the go.mod file.
+			if goModDirPath != "" {
+				confDirPath = goModDirPath
+				break
+			}
+			confDirPath, gobinPath, err = "", "", errors.New("no go.mod or manifest file found")
 			return
 		}
 	}
@@ -170,7 +187,7 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 }
 
 // EnsureInstalled ensures that the program package is installed.
-func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) (cmdPkgVerPath string, err error) {
+func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, log *stdlog.Logger, vlog *stdlog.Logger) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
 	cmdPath := filepath.Join(gobinPath, pkgBase)
@@ -182,6 +199,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 	}
 	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
+		log.Printf("Installing %s@%s\n", pkgPath, ver)
 		cmd := exec.Command("go", "install", fmt.Sprintf("%s@%s", pkgPath, ver))
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
 		cmd.Stdout = os.Stderr
@@ -201,13 +219,11 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string) 
 	return
 }
 
-//goland:noinspection GoUnusedFunction
-func run() {
+func EnsureGobinCmdInstalled() (cmdPath string, err error) {
 	confDirPath, gobinPath := v2(ConfDirPath())
 	pkgVerLockMap := v(PkgVerLockMap(confDirPath))
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
-	tags := ""
 	ver, ok := pkgVerLockMap[pkgPath]
 	if !ok {
 		cmd := exec.Command("go", "list", "-m",
@@ -223,20 +239,30 @@ func run() {
 		defer (func() { v0(writer.Close()) })()
 		_ = v(writer.WriteString(fmt.Sprintf("%s@%s\n", pkgPath, ver)))
 	}
-	cmdPkgVerPath := v(EnsureInstalled(gobinPath, pkgPath, ver, tags))
-	cmd := exec.Command(cmdPkgVerPath, append([]string{"run"}, os.Args[1:]...)...)
+	return EnsureInstalled(gobinPath, pkgPath, ver, "", stdlog.Default(), stdlog.Default())
+}
+
+func RunCommand(name string, arg ...string) (execErr *exec.ExitError, err error) {
+	cmd := exec.Command(name, arg...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
+	err = cmd.Run()
+	errors.As(err, &execErr)
+	return
+}
+
+//goland:noinspection GoUnusedFunction
+func run() {
+	gobinCmdPath := v(EnsureGobinCmdInstalled())
+	errExec, err := RunCommand(gobinCmdPath, append([]string{"run"}, os.Args[1:]...)...)
 	if err == nil {
 		os.Exit(0)
 	}
-	var execErr *exec.ExitError
-	if errors.As(err, &execErr) {
-		os.Exit(execErr.ExitCode())
+	if errExec != nil {
+		os.Exit(errExec.ExitCode())
 	}
-	log.Fatalf("Error: %+v", err)
+	stdlog.Fatalf("Error: %+v", err)
 }
 
 func main() {

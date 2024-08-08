@@ -8,6 +8,7 @@ import (
 	"github.com/knaka/gobin"
 	"github.com/knaka/gobin/log"
 	"github.com/knaka/gobin/minlib"
+	"github.com/knaka/gobin/vlog"
 	stdlog "log"
 	"os"
 )
@@ -22,12 +23,12 @@ Usage: gobin [options] <install|run|update|help> [args]
 func main() {
 	var err error
 	verbose := flag.Bool("v", false, "Verbose output")
+	silent := flag.Bool("s", false, "Silent output")
 	shouldHelp := flag.Bool("h", false, "Show help")
 	global := flag.Bool("g", false, "Install globally")
 	flag.Parse()
-	if *verbose {
-		log.SetOutput(os.Stderr)
-	}
+	vlog.SetVerbose(*verbose)
+	log.SetSilent(*silent)
 	if *shouldHelp {
 		help()
 		os.Exit(0)
@@ -43,7 +44,7 @@ func main() {
 			stdlog.Fatalf("Error: %+v", err)
 		}
 		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
-			log.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
+			vlog.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
 			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
 			if err_ == nil {
 				os.Exit(0)
@@ -63,18 +64,23 @@ func main() {
 			gobin.WithStdout(os.Stdout),
 			gobin.WithStderr(os.Stderr),
 			gobin.Global(*global),
-			gobin.Verbose(*verbose),
 		)
 	case "install":
 		err = gobin.InstallEx(subArgs,
 			gobin.Global(*global),
-			gobin.Verbose(*verbose),
 		)
 	case "update":
 		err = gobin.UpdateEx(subArgs,
 			gobin.Global(*global),
-			gobin.Verbose(*verbose),
 		)
+	case "list":
+		l, err_ := gobin.List()
+		if err_ != nil {
+			stdlog.Fatalf("Error: %+v", err_)
+		}
+		for _, entry := range l {
+			fmt.Printf("%s@%s -> %s\n", entry.Pkg, entry.Version, entry.LockedVersion)
+		}
 	case "help":
 		help()
 		os.Exit(0)
