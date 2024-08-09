@@ -7,6 +7,7 @@ github.com/knaka/go-testutils v0.0.2024080704 h1:w6dSs+IOkLd4zuoYqVsdeo4qoNKIJmi
 github.com/knaka/go-testutils v0.0.2024080704/go.mod h1:UHNuNqgztBUYS/QEagGUn5SeEU3vaw+3q+W2gJJRt5Q=
 github.com/knaka/go-utils v0.0.2024080812 h1:eoqE86emskK27CLSS40+AVciaONU6K32WsHKGZkZu2E=
 github.com/knaka/go-utils v0.0.2024080812/go.mod h1:0cuHp2JPJyDCivZsgYX/f/g9hFQoYd75934I7LOwspI=
+github.com/knaka/go-utils v0.1.1/go.mod h1:0cuHp2JPJyDCivZsgYX/f/g9hFQoYd75934I7LOwspI=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=

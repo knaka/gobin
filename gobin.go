@@ -149,6 +149,12 @@ func newInstallParams() *installParams {
 
 func install(targets []string, params *installParams, confDirPath string, gobinPath string) (cmdPath string, err error) {
 	defer Catch(&err)
+	if params.optSilent != nil {
+		log.SetSilent(*params.optSilent)
+	}
+	if params.optVerbose != nil {
+		vlog.SetVerbose(*params.optVerbose)
+	}
 	for {
 		if len(targets) == 0 {
 			break
@@ -190,12 +196,6 @@ func InstallEx(patterns []string, opts ...Option) (cmdPath string, err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	if params.optSilent != nil {
-		log.SetSilent(*params.optSilent)
-	}
-	if params.optVerbose != nil {
-		vlog.SetVerbose(*params.optVerbose)
-	}
 	var goModOptions []minlib.ConfDirPathOption
 	if params.optGlobal != nil {
 		goModOptions = append(goModOptions, minlib.WithGlobal(*params.optGlobal))
@@ -218,12 +218,6 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	params := newInstallParams()
 	for _, opt := range opts {
 		V0(opt(params))
-	}
-	if params.optSilent != nil {
-		log.SetSilent(*params.optSilent)
-	}
-	if params.optVerbose != nil {
-		vlog.SetVerbose(*params.optVerbose)
 	}
 	var goModOptions []minlib.ConfDirPathOption
 	if params.optGlobal != nil {
@@ -254,23 +248,20 @@ func Command(args ...string) (cmd *exec.Cmd, err error) {
 }
 
 //goland:noinspection GoUnusedExportedFunction
-func RunEx(args []string, opts ...Option) (err error) {
+func RunEx(args []string, opts ...Option) (errExit *exec.ExitError, err error) {
 	defer Catch(&err)
 	cmd := V(CommandEx(args, opts...))
 	vlog.Printf("Running %s\n", cmd.Path)
 	err = cmd.Run()
 	if err == nil {
-		os.Exit(0)
+		return
 	}
-	errExit := ErrorAs[*exec.ExitError](err)
-	if errExit != nil {
-		os.Exit(errExit.ExitCode())
-	}
+	errExit = ErrorAs[*exec.ExitError](err)
 	return
 }
 
 //goland:noinspection GoUnusedExportedFunction
-func Run(args ...string) (err error) {
+func Run(args ...string) (errExit *exec.ExitError, err error) {
 	return RunEx(args)
 }
 

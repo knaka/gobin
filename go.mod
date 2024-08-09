@@ -5,7 +5,7 @@ go 1.22.4
 toolchain go1.22.5
 
 require (
-	github.com/knaka/go-utils v0.0.2024080812
+	github.com/knaka/go-utils v0.1.1
 	github.com/samber/lo v1.46.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/mod v0.20.0

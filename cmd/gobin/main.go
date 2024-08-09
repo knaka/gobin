@@ -17,18 +17,6 @@ import (
 	"strings"
 )
 
-func isSubDir(subDir string, parentDir string) (bool, error) {
-	subDir, err := fsutils.CanonPath(subDir)
-	if err != nil {
-		return false, err
-	}
-	parentDir, err = fsutils.CanonPath(parentDir)
-	if err != nil {
-		return false, err
-	}
-	return strings.HasPrefix(subDir, parentDir), nil
-}
-
 func main() {
 	var err error
 	if os.Getenv("GOBIN_SILENT") != "" {
@@ -38,15 +26,16 @@ func main() {
 		vlog.SetVerbose(true)
 	}
 	if !filepath.IsAbs(os.Args[0]) {
-		// If the command is called without an absolute path, search for the command in the PATH.
+		// If the command is called without an absolute path, search for the command in the $PATH.
 		os.Args[0] = V(exec.LookPath(os.Args[0]))
 	}
 	cmdPath := filepath.Clean(V(filepath.Abs(os.Args[0])))
 	_, globalGoBinPath := V2(minlib.GlobalConfDirPath())
 
 	// Switch to the installed gobin command of the appropriate version.
+
 	if os.Getenv("NOSWITCH") == "" {
-		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(isSubDir(cmdPath, globalGoBinPath)))
+		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(fsutils.IsSubDir(cmdPath, globalGoBinPath)))
 		if err_ != nil {
 			stdlog.Fatalf("Error 2c4804d: %+v", err)
 		}
@@ -71,13 +60,13 @@ func main() {
 	}
 
 	// If called as a symlink to the locally installed program, run the program of the appropriate version.
-	//calledCmdPath := filepath.Join(filepath.Dir(V(os.Executable())), cmdBase)
+
 	cmdBase := filepath.Base(os.Args[0])
 	if !(cmdBase == minlib.GobinCmdBase || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@")) {
 		if filepath.Base(filepath.Dir(cmdPath)) == minlib.GobinDirBase ||
-			V(isSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
+			V(fsutils.IsSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
 			opts := []gobin.Option{}
-			if V(isSubDir(cmdPath, globalGoBinPath)) {
+			if V(fsutils.IsSubDir(cmdPath, globalGoBinPath)) {
 				opts = append(opts, gobin.Global(true))
 			}
 			targetCmdPath, err_ := gobin.InstallEx([]string{cmdBase}, opts...)
@@ -144,7 +133,7 @@ Environment variables:
 	subArgs := flag.Args()[1:]
 	switch subCmd {
 	case "run":
-		err = gobin.RunEx(subArgs,
+		_, err = gobin.RunEx(subArgs,
 			gobin.WithStdin(os.Stdin),
 			gobin.WithStdout(os.Stdout),
 			gobin.WithStderr(os.Stderr),
@@ -167,8 +156,8 @@ Environment variables:
 			fmt.Printf("%s@%s -> %s\n",
 				entry.Pkg,
 				entry.Version,
-				Ternary(entry.LockedVersion == "" || entry.LockedVersion == "latest",
-					"",
+				Ternary(entry.LockedVersion == "latest",
+					"undefined",
 					entry.LockedVersion,
 				),
 			)
