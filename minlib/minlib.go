@@ -35,9 +35,8 @@ func v2[T any, U any](t T, u U, err error) (T, U) {
 }
 
 type paramsT struct {
-	initialDirPath   string
-	global           bool
-	installationOnly bool
+	initialDirPath string
+	global         bool
 }
 
 type ConfDirPathOption func(*paramsT) error
@@ -54,13 +53,6 @@ func canonAbs(s string) (ret string, err error) {
 	}
 	ret = filepath.Clean(ret)
 	return
-}
-
-func installationOnly(f bool) ConfDirPathOption {
-	return func(params *paramsT) error {
-		params.installationOnly = f
-		return nil
-	}
 }
 
 func WithInitialDir(initialDir string) ConfDirPathOption {
@@ -88,10 +80,11 @@ func isRootDir(dir string) bool {
 
 type PkgVerLockMapT map[string]string
 
+const GobinCmdBase = "gobin"
 const ManifestFileBase = "Gobinfile"
 const ManifestLockFileBase = "Gobinfile-lock"
 const goModFileBase = "go.mod"
-const gobinBase = ".gobin"
+const GobinDirBase = ".gobin"
 
 // ConfDirPath returns the configuration directory path. If the global option is true, it returns the global (home)  configuration directory path. This returns the directory which contains the manifest file. If no manifest file is found in any parent directory, it returns the directory which contains the go.mod file.
 func ConfDirPath(opts ...ConfDirPathOption) (
@@ -150,7 +143,7 @@ func ConfDirPath(opts ...ConfDirPathOption) (
 			return
 		}
 	}
-	gobinPath = filepath.Join(confDirPath, gobinBase)
+	gobinPath = filepath.Join(confDirPath, GobinDirBase)
 	return
 }
 
@@ -208,7 +201,11 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 		if err != nil {
 			return
 		}
-		v0(os.Symlink(pkgBaseVer, cmdPath))
+		if pkgBase == GobinCmdBase {
+			v0(os.Symlink(pkgBaseVer, cmdPath))
+		} else {
+			v0(os.Symlink(GobinCmdBase, cmdPath))
+		}
 	}
 	return
 }
@@ -256,5 +253,18 @@ func run() {
 	if errExec != nil {
 		os.Exit(errExec.ExitCode())
 	}
-	stdlog.Fatalf("Error: %+v", err)
+	stdlog.Fatalf("Error b025d51: %+v", err)
+}
+
+//goland:noinspection GoUnusedFunction
+func install() {
+	gobinCmdPath := v(EnsureGobinCmdInstalled())
+	errExec, err := RunCommand(gobinCmdPath, append([]string{"install"}, os.Args[1:]...)...)
+	if err == nil {
+		os.Exit(0)
+	}
+	if errExec != nil {
+		os.Exit(errExec.ExitCode())
+	}
+	stdlog.Fatalf("Error 560d8bf: %+v", err)
 }

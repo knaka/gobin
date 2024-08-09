@@ -16,7 +16,7 @@ var rePackage = sync.OnceValue(func() (re *regexp.Regexp) {
 })
 
 func main() {
-	for _, subCmd := range []string{"run" /* , "install", "apply" */} {
+	for _, subCmd := range []string{"run", "install"} {
 		(func() {
 			reader := V(os.Open(filepath.Join("minlib", "minlib.go")))
 			defer (func() { V0(reader.Close()) })()

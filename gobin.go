@@ -184,7 +184,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 	return
 }
 
-func InstallEx(patterns []string, opts ...Option) (err error) {
+func InstallEx(patterns []string, opts ...Option) (cmdPath string, err error) {
 	defer Catch(&err)
 	params := newInstallParams()
 	for _, opt := range opts {
@@ -196,12 +196,11 @@ func InstallEx(patterns []string, opts ...Option) (err error) {
 		minlib.WithGlobal(params.global),
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
-	_ = V(install(patterns, params.global, confDirPath, gobinPath))
-	return
+	return install(patterns, params.global, confDirPath, gobinPath)
 }
 
 //goland:noinspection GoUnusedExportedFunction
-func Install(patterns ...string) (err error) {
+func Install(patterns ...string) (cmdPath string, err error) {
 	return InstallEx(patterns)
 }
 
