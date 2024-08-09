@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	. "github.com/knaka/go-utils"
@@ -11,12 +12,38 @@ import (
 	"github.com/knaka/gobin/vlog"
 	stdlog "log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 func main() {
 	var err error
+	if os.Getenv("NOSWITCH") == "" {
+		// Switch to the locally installed gobin command.
+		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
+		if err_ != nil {
+			stdlog.Fatalf("Error 2c4804d: %+v", err)
+		}
+		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
+			vlog.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
+			cmd := exec.Command(cmdPath, os.Args[1:]...)
+			// Save the original command path.
+			cmd.Args[0] = os.Args[0]
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err_ = cmd.Run()
+			if err_ == nil {
+				os.Exit(0)
+			}
+			var errExec *exec.ExitError
+			if errors.As(err_, &errExec) && errExec != nil {
+				os.Exit(errExec.ExitCode())
+			}
+			stdlog.Fatalf("Error 7d70a88: %+v", err_)
+		}
+	}
 	if os.Getenv("NOSWITCH") == "" {
 		// If called as a symlink to the locally installed program, run the program of the appropriate version.
 		calledCmdPath := V(filepath.Abs(os.Args[0]))
@@ -40,24 +67,6 @@ func main() {
 				os.Exit(execErr.ExitCode())
 			}
 			stdlog.Fatalf("Error 608a109: %+v", err_)
-		}
-	}
-	if os.Getenv("NOSWITCH") == "" {
-		// Switch to the locally installed gobin command.
-		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
-		if err_ != nil {
-			stdlog.Fatalf("Error 2c4804d: %+v", err)
-		}
-		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
-			vlog.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
-			errExec, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
-			if err_ == nil {
-				os.Exit(0)
-			}
-			if errExec != nil {
-				os.Exit(errExec.ExitCode())
-			}
-			stdlog.Fatalf("Error 7d70a88: %+v", err_)
 		}
 	}
 	verbose := flag.Bool("v", false, "Verbose output.")
