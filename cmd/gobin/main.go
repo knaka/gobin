@@ -17,19 +17,44 @@ import (
 	"strings"
 )
 
+func isSubDir(subDir string, parentDir string) (bool, error) {
+	subDir, err := fsutils.CanonPath(subDir)
+	if err != nil {
+		return false, err
+	}
+	parentDir, err = fsutils.CanonPath(parentDir)
+	if err != nil {
+		return false, err
+	}
+	return strings.HasPrefix(subDir, parentDir), nil
+}
+
 func main() {
 	var err error
+	if os.Getenv("GOBIN_SILENT") != "" {
+		log.SetSilent(true)
+	}
+	if os.Getenv("GOBIN_VERBOSE") != "" {
+		vlog.SetVerbose(true)
+	}
+	if !filepath.IsAbs(os.Args[0]) {
+		// If the command is called without an absolute path, search for the command in the PATH.
+		os.Args[0] = V(exec.LookPath(os.Args[0]))
+	}
+	cmdPath := filepath.Clean(V(filepath.Abs(os.Args[0])))
+	_, globalGoBinPath := V2(minlib.GlobalConfDirPath())
+
+	// Switch to the installed gobin command of the appropriate version.
 	if os.Getenv("NOSWITCH") == "" {
-		// Switch to the locally installed gobin command.
-		cmdPath, err_ := minlib.EnsureGobinCmdInstalled()
+		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(isSubDir(cmdPath, globalGoBinPath)))
 		if err_ != nil {
 			stdlog.Fatalf("Error 2c4804d: %+v", err)
 		}
-		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdPath)) {
-			vlog.Printf("Switching to the locally installed gobin command: %s\n", cmdPath)
-			cmd := exec.Command(cmdPath, os.Args[1:]...)
+		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdGobinPath)) {
+			vlog.Printf("Switching to the installed gobin command: %s\n", cmdGobinPath)
+			cmd := exec.Command(cmdGobinPath)
 			// Save the original command path.
-			cmd.Args[0] = os.Args[0]
+			cmd.Args = os.Args
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -44,31 +69,38 @@ func main() {
 			stdlog.Fatalf("Error 7d70a88: %+v", err_)
 		}
 	}
-	if os.Getenv("NOSWITCH") == "" {
-		// If called as a symlink to the locally installed program, run the program of the appropriate version.
-		calledCmdPath := V(filepath.Abs(os.Args[0]))
-		calledCmdBase := filepath.Base(calledCmdPath)
-		if !strings.Contains(calledCmdBase, "@") &&
-			calledCmdBase != minlib.GobinCmdBase &&
-			filepath.Base(filepath.Dir(calledCmdPath)) == minlib.GobinDirBase {
-			cmdPath, err_ := gobin.InstallEx([]string{calledCmdBase})
-			if os.Getenv("GOBIN_VERBOSE") != "" {
-				vlog.SetVerbose(true)
+
+	// If called as a symlink to the locally installed program, run the program of the appropriate version.
+	//calledCmdPath := filepath.Join(filepath.Dir(V(os.Executable())), cmdBase)
+	cmdBase := filepath.Base(os.Args[0])
+	if !(cmdBase == minlib.GobinCmdBase || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@")) {
+		if filepath.Base(filepath.Dir(cmdPath)) == minlib.GobinDirBase ||
+			V(isSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
+			opts := []gobin.Option{}
+			if V(isSubDir(cmdPath, globalGoBinPath)) {
+				opts = append(opts, gobin.Global(true))
 			}
-			vlog.Printf("Switching to the locally installed command: %s\n", cmdPath)
+			targetCmdPath, err_ := gobin.InstallEx([]string{cmdBase}, opts...)
+			vlog.Printf("Switching to the installed command: %s\n", targetCmdPath)
 			if err_ != nil {
 				stdlog.Fatalf("Error 078a110: %+v", err_)
 			}
-			execErr, err_ := minlib.RunCommand(cmdPath, os.Args[1:]...)
+			cmd, err_ := minlib.Command(targetCmdPath)
+			cmd.Args = os.Args
+			err_ = cmd.Run()
 			if err_ == nil {
 				os.Exit(0)
 			}
-			if execErr != nil {
+			var execErr *exec.ExitError
+			if errors.As(err, &execErr) && execErr != nil {
 				os.Exit(execErr.ExitCode())
 			}
 			stdlog.Fatalf("Error 608a109: %+v", err_)
 		}
 	}
+
+	// Continue as gobin command.
+
 	verbose := flag.Bool("v", false, "Verbose output.")
 	silent := flag.Bool("s", false, "Silent output.")
 	shouldHelp := flag.Bool("h", false, "Show help.")
@@ -89,8 +121,17 @@ Environment variables:
   NOSWITCH                If set, not switch to the locally installed (in “.gobin” directory) gobin command.`))
 	}
 	flag.Parse()
+	if !filepath.IsAbs(os.Args[0]) {
+		os.Args[0] = V(exec.LookPath(os.Args[0]))
+	}
 	vlog.SetVerbose(*verbose)
 	log.SetSilent(*silent)
+	if os.Getenv("GOBIN_SILENT") != "" {
+		log.SetSilent(true)
+	}
+	if os.Getenv("GOBIN_VERBOSE") != "" {
+		vlog.SetVerbose(true)
+	}
 	if *shouldHelp {
 		flag.Usage()
 		os.Exit(0)
@@ -118,7 +159,7 @@ Environment variables:
 			gobin.Global(*global),
 		)
 	case "list":
-		l, err_ := gobin.List()
+		l, err_ := gobin.List(*global)
 		if err_ != nil {
 			stdlog.Fatalf("Error 6eaee66: %+v", err_)
 		}
@@ -127,7 +168,7 @@ Environment variables:
 				entry.Pkg,
 				entry.Version,
 				Ternary(entry.LockedVersion == "" || entry.LockedVersion == "latest",
-					"?",
+					"",
 					entry.LockedVersion,
 				),
 			)

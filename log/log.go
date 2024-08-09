@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 var logger *stdlog.Logger
@@ -17,7 +18,10 @@ func Logger() *stdlog.Logger {
 
 func init() {
 	_, thisFilePath, _, _ := runtime.Caller(0)
-	prefix := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath))) + ": "
+	name := filepath.Base(filepath.Dir(filepath.Dir(thisFilePath)))
+	divs := strings.Split(name, "@")
+	name = divs[0]
+	prefix := name + ": "
 	logger = stdlog.New(os.Stderr, prefix, stdlog.LstdFlags)
 }
 

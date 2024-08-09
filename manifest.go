@@ -51,6 +51,9 @@ func parseManifest(dirPath string) (gobinManifest *manifestT, err error) {
 			if line == "" {
 				continue
 			}
+			if strings.HasPrefix(line, "#") {
+				continue
+			}
 			divs := strings.SplitN(line, "#", 2)
 			line = strings.TrimSpace(divs[0])
 			divs = reSpaces().Split(line, 2)

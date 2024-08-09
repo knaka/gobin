@@ -25,9 +25,9 @@ type installParams struct {
 	stdin           io.Reader
 	stdout          io.Writer
 	stderr          io.Writer
-	verbose         bool
-	silent          bool
-	global          bool
+	optVerbose      *bool
+	optSilent       *bool
+	optGlobal       *bool
 }
 
 type Option func(params *installParams) error
@@ -35,7 +35,7 @@ type Option func(params *installParams) error
 //goland:noinspection GoUnusedExportedFunction
 func Global(f bool) Option {
 	return func(params *installParams) (err error) {
-		params.global = f
+		params.optGlobal = P(f)
 		return
 	}
 }
@@ -53,7 +53,7 @@ func WithDir(dir string) Option {
 //goland:noinspection GoUnusedExportedFunction
 func Verbose(f bool) Option {
 	return func(params *installParams) (err error) {
-		params.verbose = f
+		params.optVerbose = P(f)
 		return
 	}
 }
@@ -63,7 +63,7 @@ func Verbose(f bool) Option {
 //goland:noinspection GoUnusedExportedFunction
 func Silent(f bool) Option {
 	return func(params *installParams) (err error) {
-		params.silent = f
+		params.optSilent = P(f)
 		return
 	}
 }
@@ -155,7 +155,7 @@ func install(targets []string, params *installParams, confDirPath string, gobinP
 		}
 		target := targets[0]
 		targets = targets[1:]
-		if !params.global {
+		if params.optGlobal != nil && !(*params.optGlobal) {
 			goModDef := V(parseGoMod(confDirPath))
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
@@ -190,10 +190,15 @@ func InstallEx(patterns []string, opts ...Option) (cmdPath string, err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	log.SetSilent(params.silent)
-	vlog.SetVerbose(params.verbose)
-	goModOptions := []minlib.ConfDirPathOption{
-		minlib.WithGlobal(params.global),
+	if params.optSilent != nil {
+		log.SetSilent(*params.optSilent)
+	}
+	if params.optVerbose != nil {
+		vlog.SetVerbose(*params.optVerbose)
+	}
+	var goModOptions []minlib.ConfDirPathOption
+	if params.optGlobal != nil {
+		goModOptions = append(goModOptions, minlib.WithGlobal(*params.optGlobal))
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
 	return install(patterns, params, confDirPath, gobinPath)
@@ -214,10 +219,15 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	log.SetSilent(params.silent)
-	vlog.SetVerbose(params.verbose)
-	goModOptions := []minlib.ConfDirPathOption{
-		minlib.WithGlobal(params.global),
+	if params.optSilent != nil {
+		log.SetSilent(*params.optSilent)
+	}
+	if params.optVerbose != nil {
+		vlog.SetVerbose(*params.optVerbose)
+	}
+	var goModOptions []minlib.ConfDirPathOption
+	if params.optGlobal != nil {
+		goModOptions = append(goModOptions, minlib.WithGlobal(*params.optGlobal))
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
 	cmdPath := V(install([]string{args[0]}, params, confDirPath, gobinPath))
@@ -247,6 +257,7 @@ func Command(args ...string) (cmd *exec.Cmd, err error) {
 func RunEx(args []string, opts ...Option) (err error) {
 	defer Catch(&err)
 	cmd := V(CommandEx(args, opts...))
+	vlog.Printf("Running %s\n", cmd.Path)
 	err = cmd.Run()
 	if err == nil {
 		os.Exit(0)
@@ -269,10 +280,15 @@ func UpdateEx(patterns []string, opts ...Option) (err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
-	log.SetSilent(params.silent)
-	vlog.SetVerbose(params.verbose)
-	goModOptions := []minlib.ConfDirPathOption{
-		minlib.WithGlobal(params.global),
+	if params.optSilent != nil {
+		log.SetSilent(*params.optSilent)
+	}
+	if params.optVerbose != nil {
+		vlog.SetVerbose(*params.optVerbose)
+	}
+	var goModOptions []minlib.ConfDirPathOption
+	if params.optGlobal != nil {
+		goModOptions = append(goModOptions, minlib.WithGlobal(*params.optGlobal))
 	}
 	confDirPath, _ := V2(minlib.ConfDirPath(goModOptions...))
 	manifest := V(parseManifest(confDirPath))
@@ -315,8 +331,8 @@ type ListEntry struct {
 	LockedVersion string
 }
 
-func List() (ret []*ListEntry, err error) {
-	confDirPath, _ := V2(minlib.ConfDirPath())
+func List(global bool) (ret []*ListEntry, err error) {
+	confDirPath, _ := V2(minlib.ConfDirPath(minlib.WithGlobal(global)))
 	manifest, err := parseManifest(confDirPath)
 	if err != nil {
 		return
