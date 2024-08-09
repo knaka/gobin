@@ -147,7 +147,7 @@ func newInstallParams() *installParams {
 	}
 }
 
-func install(targets []string, global bool, confDirPath string, gobinPath string) (cmdPath string, err error) {
+func install(targets []string, params *installParams, confDirPath string, gobinPath string) (cmdPath string, err error) {
 	defer Catch(&err)
 	for {
 		if len(targets) == 0 {
@@ -155,7 +155,7 @@ func install(targets []string, global bool, confDirPath string, gobinPath string
 		}
 		target := targets[0]
 		targets = targets[1:]
-		if !global {
+		if !params.global {
 			goModDef := V(parseGoMod(confDirPath))
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
@@ -196,7 +196,7 @@ func InstallEx(patterns []string, opts ...Option) (cmdPath string, err error) {
 		minlib.WithGlobal(params.global),
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
-	return install(patterns, params.global, confDirPath, gobinPath)
+	return install(patterns, params, confDirPath, gobinPath)
 }
 
 //goland:noinspection GoUnusedExportedFunction
@@ -214,16 +214,20 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
+	log.SetSilent(params.silent)
 	vlog.SetVerbose(params.verbose)
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
 	}
 	confDirPath, gobinPath := V2(minlib.ConfDirPath(goModOptions...))
-	cmdPath := V(install([]string{args[0]}, params.global, confDirPath, gobinPath))
+	cmdPath := V(install([]string{args[0]}, params, confDirPath, gobinPath))
 	cmd = exec.Command(cmdPath, args[1:]...)
 	cmd.Stdin = params.stdin
 	cmd.Stdout = params.stdout
 	cmd.Stderr = params.stderr
+	if params.Dir != "" {
+		cmd.Dir = params.Dir
+	}
 	cmd.Env = os.Environ()
 	if params.Env != nil {
 		cmd.Env = append(cmd.Env, params.Env...)
@@ -265,6 +269,7 @@ func UpdateEx(patterns []string, opts ...Option) (err error) {
 	for _, opt := range opts {
 		V0(opt(params))
 	}
+	log.SetSilent(params.silent)
 	vlog.SetVerbose(params.verbose)
 	goModOptions := []minlib.ConfDirPathOption{
 		minlib.WithGlobal(params.global),
