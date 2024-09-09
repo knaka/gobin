@@ -155,14 +155,18 @@ func install(targets []string, params *installParams, confDirPath string, gobinP
 	if params.optVerbose != nil {
 		vlog.SetVerbose(*params.optVerbose)
 	}
+	global := params.optGlobal != nil && !(*params.optGlobal)
+	var goModDef *goModDefT
+	if !global {
+		goModDef = V(parseGoMod(confDirPath))
+	}
 	for {
 		if len(targets) == 0 {
 			break
 		}
 		target := targets[0]
 		targets = targets[1:]
-		if params.optGlobal != nil && !(*params.optGlobal) {
-			goModDef := V(parseGoMod(confDirPath))
+		if !global && goModDef != nil {
 			reqMod := goModDef.requiredModuleByPkg(target)
 			if reqMod != nil {
 				cmdPath = Elvis(cmdPath, V(minlib.EnsureInstalled(gobinPath, target, reqMod.Version, "", log.Logger(), vlog.Logger())))

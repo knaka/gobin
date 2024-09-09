@@ -42,6 +42,9 @@ func (mod *goModDefT) requiredModuleByPkg(pkgName string) (x *module.Version) {
 
 // parseGoMod parses the go.mod file in the given directory.
 func parseGoMod(dirPath string) (goModDef *goModDefT, err error) {
+	if _, err = os.Stat(dirPath); err != nil {
+		return
+	}
 	defer Catch(&err)
 	filePath := TernaryF(
 		filepath.Base(dirPath) == goModBase,
