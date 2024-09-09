@@ -37,7 +37,7 @@ func main() {
 	if os.Getenv("NOSWITCH") == "" {
 		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(fsutils.IsSubDir(cmdPath, globalGoBinPath)))
 		if err_ != nil {
-			stdlog.Fatalf("Error 2c4804d: %+v", err)
+			stdlog.Fatalf("Error 3c4804d: %+v", err)
 		}
 		if V(fsutils.CanonPath(V(os.Executable()))) != V(fsutils.CanonPath(cmdGobinPath)) {
 			vlog.Printf("Switching to the installed gobin command: %s\n", cmdGobinPath)

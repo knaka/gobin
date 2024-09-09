@@ -144,3 +144,9 @@ func TestRunCommand(t *testing.T) {
 		})
 	}
 }
+
+func Test_getGobin(t *testing.T) {
+	gobin, err := getGobin()
+	assert.Nil(t, err)
+	assert.Equal(t, "", gobin)
+}
