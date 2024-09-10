@@ -388,9 +388,10 @@ func RunCommand(name string, arg ...string) (execErr *exec.ExitError, err error)
 	return
 }
 
+// bootstrapMain is the main function of the bootstrap file.
 func bootstrapMain() {
 	gobinCmdPath := v(EnsureGobinCmdInstalled(false))
-	errExec, err := RunCommand(gobinCmdPath, os.Args...)
+	errExec, err := RunCommand(gobinCmdPath, os.Args[1:]...)
 	if err == nil {
 		os.Exit(0)
 	}
