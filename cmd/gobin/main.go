@@ -19,6 +19,24 @@ import (
 
 func main() {
 	Debugger()
+	shouldNotSwitch := false
+outer:
+	for {
+		if len(os.Args) <= 1 {
+			break
+		}
+		switch os.Args[1] {
+		case "--no-switch":
+			shouldNotSwitch = true
+		case "--silent":
+			log.SetSilent(true)
+		case "--verbose":
+			vlog.SetVerbose(true)
+		default:
+			break outer
+		}
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+	}
 	var err error
 	if os.Getenv("GOBIN_SILENT") != "" {
 		log.SetSilent(true)
@@ -34,12 +52,6 @@ func main() {
 	_, globalGoBinPath := V2(minlib.GlobalConfDirPath())
 
 	// Switch to the installed gobin command of the appropriate version.
-
-	shouldNotSwitch := false
-	if len(os.Args) > 1 && os.Args[1] == "--no-switch" {
-		shouldNotSwitch = true
-		os.Args = append(os.Args[:1], os.Args[2:]...)
-	}
 	if os.Getenv("NOSWITCH") == "" && !shouldNotSwitch {
 		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(fsutils.IsSubDir(cmdPath, globalGoBinPath)))
 		if err_ != nil {
