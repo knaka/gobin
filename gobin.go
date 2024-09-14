@@ -155,7 +155,7 @@ func install(targets []string, params *installParams, confDirPath string, gobinP
 	if params.optVerbose != nil {
 		vlog.SetVerbose(*params.optVerbose)
 	}
-	global := params.optGlobal != nil && !(*params.optGlobal)
+	global := params.optGlobal != nil && *params.optGlobal
 	var goModDef *goModDefT
 	if !global {
 		goModDef = V(parseGoMod(confDirPath))

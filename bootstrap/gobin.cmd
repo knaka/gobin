@@ -276,14 +276,14 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, log *stdlog.Logger, _ *stdlog.Logger) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
-	cmdPath := filepath.Join(gobinPath, pkgBase)
+	cmdPath := filepath.Join(gobinPath, pkgBase+ExeExt)
 	if tags != "" {
 		hash := sha1.New()
 		hash.Write([]byte(tags))
 		sevenDigits := fmt.Sprintf("%x", hash.Sum(nil))[:7]
 		pkgBaseVer += "-" + sevenDigits
 	}
-	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer)
+	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer+ExeExt)
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
 		log.Printf("Installing %s@%s\n", pkgPath, ver)
 		cmd := exec.Command(getGoCmd(), "install", fmt.Sprintf("%s@%s", pkgPath, ver))
@@ -296,14 +296,14 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 			return
 		}
 		_ = os.Remove(cmdPkgVerPath)
-		err = os.Rename(filepath.Join(gobinPath, pkgBase), cmdPkgVerPath)
+		err = os.Rename(cmdPath, cmdPkgVerPath)
 		if err != nil {
 			return
 		}
 		if pkgBase == GobinCmdBase {
 			v0(os.Symlink(pkgBaseVer, cmdPath))
 		} else {
-			v0(os.Symlink(GobinCmdBase, cmdPath))
+			v0(os.Symlink(GobinCmdBase+ExeExt, cmdPath))
 		}
 	}
 	return
@@ -373,15 +373,7 @@ func unzip(src, dest string) error {
 	return nil
 }
 
-func getGobin() (gobinPath string, err error) {
-	envGobin := os.Getenv("GOBIN")
-	if envGobin != "" {
-		return envGobin, nil
-	}
-	envGoPath := os.Getenv("GOPATH")
-	if envGoPath != "" {
-		return filepath.Join(envGoPath, "bin"), nil
-	}
+func getGoroot() (gobinPath string, err error) {
 	envGoRoot := os.Getenv("GOROOT")
 	if envGoRoot != "" {
 		return filepath.Join(envGoRoot, "bin"), nil
@@ -432,7 +424,7 @@ func getGobin() (gobinPath string, err error) {
 }
 
 func getGoCmd() string {
-	return filepath.Join(v(getGobin()), "go")
+	return filepath.Join(v(getGoroot()), "go"+ExeExt)
 }
 
 func EnsureGobinCmdInstalled(global bool) (cmdPath string, err error) {

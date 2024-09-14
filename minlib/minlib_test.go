@@ -28,6 +28,7 @@ func TestGetConfPath(t *testing.T) {
 		filepath.Join(testdataDirPath, "foo", "bar", "go.mod.orig"),
 		filepath.Join(testdataDirPath, "foo", "bar", "go.mod"),
 	))
+	V0(os.MkdirAll(filepath.Join("..", ".gobin"), 0755))
 	type args struct {
 		opts []ConfDirPathOption
 	}
@@ -146,7 +147,7 @@ func TestRunCommand(t *testing.T) {
 }
 
 func Test_getGobin(t *testing.T) {
-	gobin, err := getGobin()
+	gobin, err := getGoroot()
 	assert.Nil(t, err)
 	assert.Equal(t, "", gobin)
 }

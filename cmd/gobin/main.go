@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	Debugger()
 	var err error
 	if os.Getenv("GOBIN_SILENT") != "" {
 		log.SetSilent(true)
@@ -34,7 +35,12 @@ func main() {
 
 	// Switch to the installed gobin command of the appropriate version.
 
-	if os.Getenv("NOSWITCH") == "" {
+	shouldNotSwitch := false
+	if len(os.Args) > 1 && os.Args[1] == "--no-switch" {
+		shouldNotSwitch = true
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+	}
+	if os.Getenv("NOSWITCH") == "" && !shouldNotSwitch {
 		cmdGobinPath, err_ := minlib.EnsureGobinCmdInstalled(V(fsutils.IsSubDir(cmdPath, globalGoBinPath)))
 		if err_ != nil {
 			stdlog.Fatalf("Error 3c4804d: %+v", err)
@@ -62,7 +68,7 @@ func main() {
 	// If called as a symlink to the locally installed program, run the program of the appropriate version.
 
 	cmdBase := filepath.Base(os.Args[0])
-	if !(cmdBase == minlib.GobinCmdBase || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@")) {
+	if !(cmdBase == minlib.GobinCmdBase+minlib.ExeExt || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@"+minlib.ExeExt)) {
 		if filepath.Base(filepath.Dir(cmdPath)) == minlib.GobinDirBase ||
 			V(fsutils.IsSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
 			opts := []gobin.Option{}
