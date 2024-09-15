@@ -90,7 +90,7 @@ endlocal
 
 // Latest version is available by running:
 //
-//   curl --remote-name https://raw.githubusercontent.com/knaka/gobin/main/gobin.go
+//   curl --remote-name https://raw.githubusercontent.com/knaka/gobin/main/bootstrap/gobin.go
 
 //go:build ignore
 
