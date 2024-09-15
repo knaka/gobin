@@ -3,4 +3,4 @@
 
 package minlib
 
-const exeExt = ""
+const ExeExt = ""
