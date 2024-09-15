@@ -226,7 +226,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 			return
 		}
 		if pkgBase == GobinCmdBase {
-			v0(os.Symlink(pkgBaseVer, cmdPath))
+			v0(os.Symlink(pkgBaseVer+ExeExt, cmdPath))
 		} else {
 			v0(os.Symlink(GobinCmdBase+ExeExt, cmdPath))
 		}
