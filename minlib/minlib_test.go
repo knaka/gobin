@@ -13,8 +13,9 @@ import (
 
 func TestGetConfPath(t *testing.T) {
 	defaultTempDir := os.TempDir()
+	setMockRootDir(defaultTempDir)
 	Ignore(os.Remove(filepath.Join(defaultTempDir, "go.mod")))
-	tempDir := V(canonAbs(V(os.MkdirTemp(defaultTempDir, "gobin-test"))))
+	tempDir := V(realpath(V(os.MkdirTemp(defaultTempDir, "gobin-test"))))
 	noGoMod := filepath.Join(tempDir, "no-go-mod")
 	V0(os.MkdirAll(noGoMod, 0755))
 	hasGoMod := filepath.Join(tempDir, "has-go-mod", "foo", "bar")

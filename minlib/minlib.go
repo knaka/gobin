@@ -44,8 +44,8 @@ type paramsT struct {
 
 type ConfDirPathOption func(*paramsT) error
 
-// canonAbs returns the canonical absolute path of the given value.
-func canonAbs(s string) (ret string, err error) {
+// realpath returns the canonical absolute path of the given value.
+func realpath(s string) (ret string, err error) {
 	ret, err = filepath.Abs(s)
 	if err != nil {
 		return
@@ -60,7 +60,7 @@ func canonAbs(s string) (ret string, err error) {
 
 func WithInitialDir(initialDir string) ConfDirPathOption {
 	return func(params *paramsT) (err error) {
-		params.initialDirPath, err = canonAbs(initialDir)
+		params.initialDirPath, err = realpath(initialDir)
 		return
 	}
 }
@@ -72,10 +72,21 @@ func WithGlobal(f bool) ConfDirPathOption {
 	}
 }
 
+var mockRootDirPath = ""
+
+// setMockRootDir sets the root directory path for testing.
+// Introduced because the temporary directory of Windows is under the user home directory.
+func setMockRootDir(dir string) {
+	mockRootDirPath = v(realpath(dir))
+}
+
 func isRootDir(dir string) bool {
-	dirPath, err := filepath.Abs(dir)
+	dirPath, err := realpath(dir)
 	if err != nil {
 		return false
+	}
+	if mockRootDirPath != "" {
+		return dirPath == mockRootDirPath
 	}
 	dirPath = filepath.Clean(dirPath)
 	return dirPath == filepath.Dir(dirPath)
@@ -101,6 +112,14 @@ func GlobalConfDirPath() (confDirPath string, gobinPath string, err error) {
 	return
 }
 
+func parentDirOf(dir string) string {
+	dirPath := v(realpath(dir))
+	if mockRootDirPath != "" && mockRootDirPath == dirPath {
+		return dir
+	}
+	return filepath.Dir(dirPath)
+}
+
 // ConfDirPath returns the configuration directory path. If the global option is true, it returns the global (home)  configuration directory path. This returns the directory which contains the manifest file. If no manifest file is found in any parent directory, it returns the directory which contains the go.mod file.
 func ConfDirPath(opts ...ConfDirPathOption) (
 	confDirPath string,
@@ -119,7 +138,7 @@ func ConfDirPath(opts ...ConfDirPathOption) (
 	}
 	confDirPath = params.initialDirPath
 	if confDirPath == "" {
-		confDirPath, err = canonAbs(".")
+		confDirPath, err = realpath(".")
 		if err != nil {
 			return
 		}
@@ -139,7 +158,7 @@ func ConfDirPath(opts ...ConfDirPathOption) (
 		if stat, err_ := os.Stat(filepath.Join(confDirPath, ManifestLockFileBase)); err_ == nil && stat.IsDir() {
 			break
 		}
-		confDirPath = filepath.Dir(confDirPath)
+		confDirPath = parentDirOf(confDirPath)
 		if isRootDir(confDirPath) {
 			// If no manifest file is found in any parent directory, return the directory which contains the go.mod file.
 			if goModDirPath != "" {
