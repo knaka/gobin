@@ -1,6 +1,0 @@
-#!/bin/bash
-set -o nounset -o errexit -o pipefail
-
-cd "$(dirname "$0")"
-source install-go.lib.bash
-go run gobin-install.go "$@"
