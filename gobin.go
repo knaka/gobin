@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	. "github.com/knaka/go-utils"
-	"github.com/knaka/gobin/log"
-	"github.com/knaka/gobin/minlib"
-	"github.com/knaka/gobin/vlog"
-	"github.com/samber/lo"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	. "github.com/knaka/go-utils"
+	"github.com/knaka/gobin/log"
+	"github.com/knaka/gobin/minlib"
+	"github.com/knaka/gobin/vlog"
+	"github.com/samber/lo"
 )
 
 type installParams struct {
@@ -148,7 +149,6 @@ func newInstallParams() *installParams {
 }
 
 func install(targets []string, params *installParams, confDirPath string, gobinPath string) (cmdPath string, err error) {
-	defer Catch(&err)
 	if params.optSilent != nil {
 		log.SetSilent(*params.optSilent)
 	}
@@ -165,6 +165,7 @@ func install(targets []string, params *installParams, confDirPath string, gobinP
 			break
 		}
 		target := targets[0]
+		//target = strings.Replace(target, minlib.ExeExt(), "", 1)
 		targets = targets[1:]
 		if !global && goModDef != nil {
 			reqMod := goModDef.requiredModuleByPkg(target)
@@ -270,7 +271,6 @@ func Run(args ...string) (errExit *exec.ExitError, err error) {
 }
 
 func UpdateEx(patterns []string, opts ...Option) (err error) {
-	defer Catch(&err)
 	params := newInstallParams()
 	for _, opt := range opts {
 		V0(opt(params))
