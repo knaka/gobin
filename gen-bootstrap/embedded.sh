@@ -31,8 +31,8 @@ go_cmd_path() {
   # User installation paths. Use the latest in case of multiple installations.
   _latest_dir_path=
   for _dir_path in \
-    "$HOME"/go/go* \
-    "$HOME"/sdk/go*
+    "$HOME"/go/go1* \
+    "$HOME"/sdk/go1*
   do
     if ! test -d "$_dir_path"
     then
@@ -43,7 +43,7 @@ go_cmd_path() {
       _latest_dir_path=$_dir_path
       continue
     fi
-    if expr "$(basename "$_latest_dir_path")" \> "$(basename "$_dir_path")" >/dev/null
+    if expr "$(basename "$_dir_path")" \> "$(basename "$_latest_dir_path")" >/dev/null
     then
       _latest_dir_path=$_dir_path
       continue
@@ -52,12 +52,6 @@ go_cmd_path() {
   if test -n "$_latest_dir_path"
   then
     echo "$_latest_dir_path"/bin/go
-    return
-  fi
-  # Command in user $GOPATH
-  if type "$HOME"/go/bin/go >/dev/null 2>&1
-  then
-    echo "$HOME"/go/bin/go
     return
   fi
   # If not found, download // All releases - The Go Programming Language https://go.dev/dl/

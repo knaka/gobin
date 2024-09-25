@@ -9,13 +9,12 @@
 package main
 
 import (
-	"archive/zip"
 	"bufio"
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"log"
 	stdlog "log"
 	"os"
 	"os/exec"
@@ -25,6 +24,8 @@ import (
 	"strings"
 	"sync"
 )
+
+var verbose = false
 
 func v0(err error) {
 	if err != nil {
@@ -245,94 +246,34 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 	return
 }
 
-func unzip(src, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	os.MkdirAll(dest, 0755)
-
-	// Closure to address file descriptors issue with all the deferred .Close() methods
-	extractAndWriteFile := func(f *zip.File) error {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := rc.Close(); err != nil {
-				panic(err)
-			}
-		}()
-
-		path := filepath.Join(dest, f.Name)
-
-		// Check for ZipSlip (Directory traversal)
-		if !strings.HasPrefix(path, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("illegal file path: %s", path)
-		}
-
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
-		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
-				}
-			}()
-
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	for _, f := range r.File {
-		err := extractAndWriteFile(f)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func getGoroot() (gobinPath string, err error) {
-	envGoRoot := os.Getenv("GOROOT")
-	if envGoRoot != "" {
-		return filepath.Join(envGoRoot, "bin"), nil
-	}
-	if _, err := exec.LookPath("go"); err == nil {
-		cmd := exec.Command("go", "env", "GOROOT")
-		cmd.Stderr = os.Stderr
-		output := v(cmd.Output())
-		goRoot := strings.TrimSpace(string(output))
-		return filepath.Join(goRoot, "bin"), nil
+	if goPath, err := exec.LookPath("go"); err == nil {
+		return goPath, nil
 	}
 	var dirPaths []string
-	for _, drPath := range v(filepath.Glob(filepath.Join(os.Getenv("HOME"), "sdk", "go*"))) {
-		dirPaths = append(dirPaths, drPath)
-	}
 	dirPaths = append(dirPaths, "/usr/local/go")
 	dirPaths = append(dirPaths, v(filepath.Glob("/usr/local/Cellar/go/*"))...)
 	dirPaths = append(dirPaths, "/Program Files/Go")
-	dirPaths = append(dirPaths, filepath.Join(os.Getenv("HOME"), "go"))
 	for _, dirPath := range dirPaths {
 		if _, err := exec.LookPath(filepath.Join(dirPath, "bin", "go")); err == nil {
 			return filepath.Join(dirPath, "bin"), nil
 		}
+	}
+	var latestDirPath string
+	dirPaths = v(filepath.Glob(filepath.Join(os.Getenv("HOME"), "sdk", "go1*")))
+	dirPaths = append(dirPaths, v(filepath.Glob(filepath.Join(os.Getenv("HOME"), "go", "go1*")))...)
+	for _, dirPath := range dirPaths {
+		if latestDirPath == "" {
+			latestDirPath = dirPath
+			continue
+		}
+		if filepath.Base(dirPath) > filepath.Base(latestDirPath) {
+			latestDirPath = dirPath
+			continue
+		}
+	}
+	if latestDirPath != "" {
+		return filepath.Join(latestDirPath, "bin"), nil
 	}
 	ver := "1.23.1"
 	homeDir := v(os.UserHomeDir())
@@ -341,13 +282,18 @@ func getGoroot() (gobinPath string, err error) {
 	//goland:noinspection GoBoolExpressions
 	if runtime.GOOS == "windows" {
 		tempDir := v(os.MkdirTemp("", ""))
+		defer (func() { v0(os.RemoveAll(tempDir)) })()
 		zipPath := filepath.Join(tempDir, "temp.zip")
 		url := fmt.Sprintf("https://go.dev/dl/go%s.%s-%s.zip", ver, runtime.GOOS, runtime.GOARCH)
 		cmd := exec.Command("curl.exe", "--location", "-o", zipPath,
 			url)
+		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		v0(cmd.Run())
-		unzip(zipPath, sdkDirPath)
+		cmd = exec.Command("tar.exe", "-C", sdkDirPath, "-xzf", zipPath)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		v0(cmd.Run())
 	} else {
 		cmd := exec.Command("curl", "--location", "-o", "-",
 			fmt.Sprintf("https://go.dev/dl/go%s.%s-%s.tar.gz", ver, runtime.GOOS, runtime.GOARCH))
@@ -361,7 +307,11 @@ func getGoroot() (gobinPath string, err error) {
 }
 
 func getGoCmd() string {
-	return filepath.Join(v(getGoroot()), "go"+ExeExt())
+	cmdPath := filepath.Join(v(getGoroot()), "go"+ExeExt())
+	if verbose {
+		log.Printf("The path to the go command is %s\n", cmdPath)
+	}
+	return cmdPath
 }
 
 func EnsureGobinCmdInstalled(global bool) (cmdPath string, err error) {
@@ -374,7 +324,14 @@ func EnsureGobinCmdInstalled(global bool) (cmdPath string, err error) {
 	modPath := "github.com/knaka/gobin"
 	pkgPath := "github.com/knaka/gobin/cmd/gobin"
 	ver, ok := pkgVerLockMap[pkgPath]
-	if !ok {
+	if ok {
+		if verbose {
+			log.Printf("The locked version of %s is %s\n", pkgPath, ver)
+		}
+	} else {
+		if verbose {
+			log.Printf("Querying the latest version of %s\n", pkgPath)
+		}
 		cmd := exec.Command(getGoCmd(), "list", "-m",
 			"--json", fmt.Sprintf("%s@%s", modPath, "latest"))
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
@@ -383,6 +340,9 @@ func EnsureGobinCmdInstalled(global bool) (cmdPath string, err error) {
 		goListOutput := GoListOutput{}
 		v0(json.Unmarshal(output, &goListOutput))
 		ver = goListOutput.Version
+		if verbose {
+			log.Printf("The latest version of %s is %s\n", pkgPath, ver)
+		}
 		manifestLockPath := filepath.Join(confDirPath, ManifestLockFileBase)
 		writer := v(os.OpenFile(manifestLockPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600))
 		defer (func() { v0(writer.Close()) })()
@@ -411,6 +371,19 @@ func RunCommand(name string, arg ...string) (execErr *exec.ExitError, err error)
 
 // bootstrapMain is the main function of the bootstrap file.
 func bootstrapMain() {
+outer:
+	for {
+		if len(os.Args) <= 1 {
+			break
+		}
+		switch os.Args[1] {
+		case "--verbose":
+			verbose = true
+		default:
+			break outer
+		}
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+	}
 	gobinCmdPath := v(EnsureGobinCmdInstalled(false))
 	errExec, err := RunCommand(gobinCmdPath, os.Args[1:]...)
 	if err == nil {

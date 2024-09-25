@@ -54,19 +54,20 @@ func main() {
 `)))
 	//V0(writer.Close)
 
-	bootstrapGoPath := filepath.Join("bootstrap", "gobin.go")
+	bootstrapGoPath := filepath.Join("bootstrap", "cmd-gobin.go")
 	bootstrapGo := V(os.Create(bootstrapGoPath))
 	defer (func() { V0(bootstrapGo.Close()) })()
 	V0(bootstrapGo.WriteString(writer.String()))
 
 	embeddedSh = strings.Replace(embeddedSh, "embed_fce761e", writer.String(), 1)
-	bootstrapShPath := filepath.Join("bootstrap", "gobin")
+	bootstrapShPath := filepath.Join("bootstrap", "cmd-gobin")
 	bootstrapSh := V(os.Create(bootstrapShPath))
 	defer (func() { V0(bootstrapSh.Close()) })()
 	V0(bootstrapSh.WriteString(embeddedSh))
+	V0(os.Chmod(bootstrapShPath, 0755))
 
 	embeddedCmd = strings.Replace(embeddedCmd, "embed_fce761e", writer.String(), 1)
-	bootstrapCmdPath := filepath.Join("bootstrap", "gobin.cmd")
+	bootstrapCmdPath := filepath.Join("bootstrap", "cmd-gobin.cmd")
 	bootstrapCmd := V(os.Create(bootstrapCmdPath))
 	defer (func() { V0(bootstrapCmd.Close()) })()
 	V0(bootstrapCmd.WriteString(embeddedCmd))
