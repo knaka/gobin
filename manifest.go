@@ -145,11 +145,16 @@ func (mani *manifestT) lookup(pattern string) (entry *maniEntry) {
 	divs := strings.SplitN(pattern, "@", 2)
 	pkg := ""
 	base := ""
+	// Package with Version
 	if len(divs) == 2 {
 		pkg = divs[0]
-	} else if strings.Contains(pattern, "/") {
+	} else
+	// Package without version
+	if strings.Contains(pattern, "/") {
 		pkg = pattern
-	} else {
+	} else
+	// Only the base name
+	{
 		base = pattern
 	}
 	if pkg == "" && base != "" {
