@@ -60,6 +60,7 @@ func main() {
 	V0(bootstrapGo.WriteString(writer.String()))
 
 	embeddedSh = strings.Replace(embeddedSh, "embed_fce761e", writer.String(), 1)
+	embeddedSh = strings.Replace(embeddedSh, "url_a8e2423", "https://raw.githubusercontent.com/knaka/gobin/refs/heads/main/bootstrap/cmd-gobin", 1)
 	bootstrapShPath := filepath.Join("bootstrap", "cmd-gobin")
 	bootstrapSh := V(os.Create(bootstrapShPath))
 	defer (func() { V0(bootstrapSh.Close()) })()
@@ -67,6 +68,7 @@ func main() {
 	V0(os.Chmod(bootstrapShPath, 0755))
 
 	embeddedCmd = strings.Replace(embeddedCmd, "embed_fce761e", writer.String(), 1)
+	embeddedCmd = strings.Replace(embeddedCmd, "url_935916d", "https://raw.githubusercontent.com/knaka/gobin/refs/heads/main/bootstrap/cmd-gobin.cmd", 1)
 	bootstrapCmdPath := filepath.Join("bootstrap", "cmd-gobin.cmd")
 	bootstrapCmd := V(os.Create(bootstrapCmdPath))
 	defer (func() { V0(bootstrapCmd.Close()) })()
