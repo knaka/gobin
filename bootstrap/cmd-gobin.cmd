@@ -341,6 +341,7 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 }
 
 func getGoroot() (gobinPath string, err error) {
+	ver := "1.22.7"
 	if goPath, err := exec.LookPath("go"); err == nil {
 		return goPath, nil
 	}
@@ -350,29 +351,16 @@ func getGoroot() (gobinPath string, err error) {
 	dirPaths = append(dirPaths, "/Program Files/Go")
 	for _, dirPath := range dirPaths {
 		if _, err := exec.LookPath(filepath.Join(dirPath, "bin", "go")); err == nil {
-			return filepath.Join(dirPath, "bin"), nil
+			return dirPath, nil
 		}
 	}
-	var latestDirPath string
-	dirPaths = v(filepath.Glob(filepath.Join(os.Getenv("HOME"), "sdk", "go1*")))
-	dirPaths = append(dirPaths, v(filepath.Glob(filepath.Join(os.Getenv("HOME"), "go", "go1*")))...)
-	for _, dirPath := range dirPaths {
-		if latestDirPath == "" {
-			latestDirPath = dirPath
-			continue
-		}
-		if filepath.Base(dirPath) > filepath.Base(latestDirPath) {
-			latestDirPath = dirPath
-			continue
-		}
-	}
-	if latestDirPath != "" {
-		return filepath.Join(latestDirPath, "bin"), nil
-	}
-	ver := "1.23.1"
 	homeDir := v(os.UserHomeDir())
 	sdkDirPath := filepath.Join(homeDir, "sdk")
 	goRoot := filepath.Join(sdkDirPath, "go"+ver)
+	goCmdPath := filepath.Join(goRoot, "bin", "go"+ExeExt())
+	if _, err := os.Stat(goCmdPath); err == nil {
+		return goRoot, nil
+	}
 	//goland:noinspection GoBoolExpressions
 	if runtime.GOOS == "windows" {
 		tempDir := v(os.MkdirTemp("", ""))
@@ -397,11 +385,11 @@ func getGoroot() (gobinPath string, err error) {
 	}
 	//	Then rename.
 	v0(os.Rename(filepath.Join(sdkDirPath, "go"), goRoot))
-	return filepath.Join(goRoot, "bin"), nil
+	return goRoot, nil
 }
 
 func getGoCmd() string {
-	cmdPath := filepath.Join(v(getGoroot()), "go"+ExeExt())
+	cmdPath := filepath.Join(v(getGoroot()), "bin", "go"+ExeExt())
 	if verbose {
 		log.Printf("The path to the go command is %s\n", cmdPath)
 	}
