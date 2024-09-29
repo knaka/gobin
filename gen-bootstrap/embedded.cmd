@@ -8,7 +8,7 @@ if "%~1" == "update-me" (
 )
 
 @REM All releases - The Go Programming Language https://go.dev/dl/
-set "ver=1.22.7"
+set "ver=1.23.1"
 
 set "exit_code=1"
 
