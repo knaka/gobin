@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -78,7 +79,7 @@ outer:
 	}
 
 	// If called as a symlink to the locally installed program, run the program of the appropriate version.
-	cmdBase := minlib.RemoveExeExt(filepath.Base(os.Args[0]))
+	cmdBase := removeExeExt(filepath.Base(os.Args[0]))
 	if !(cmdBase == minlib.GobinCmdBase || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@")) {
 		if filepath.Base(filepath.Dir(cmdPath)) == minlib.GobinDirBase ||
 			V(fsutils.IsSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
@@ -191,4 +192,18 @@ Environment variables:
 		stdlog.Fatalf("Error beba31d: %+v", err)
 	}
 	return
+}
+
+func removeExeExt(path string) string {
+	//goland:noinspection GoBoolExpressions
+	if runtime.GOOS != "windows" {
+		return path
+	}
+	pathLower := strings.ToLower(path)
+	for _, ext := range []string{".exe", ".bat", ".cmd", ".com"} {
+		if strings.HasSuffix(pathLower, ext) {
+			return path[:len(path)-len(ext)]
+		}
+	}
+	return path
 }

@@ -243,7 +243,7 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	if params.WithGobinPath {
 		cmd.Env = append(cmd.Env, "PATH="+gobinPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
 	}
-	binDirPath := filepath.Join(V(minlib.GetGoroot()), "bin")
+	binDirPath := filepath.Join(V(minlib.Goroot()), "bin")
 	cmd.Env = append(cmd.Env, "PATH="+binDirPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
 	return
 }
