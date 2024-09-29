@@ -165,7 +165,6 @@ func install(targets []string, params *installParams, confDirPath string, gobinP
 			break
 		}
 		target := targets[0]
-		//target = strings.Replace(target, minlib.ExeExt(), "", 1)
 		targets = targets[1:]
 		if !global && goModDef != nil {
 			reqMod := goModDef.requiredModuleByPkg(target)
@@ -244,6 +243,8 @@ func CommandEx(args []string, opts ...Option) (cmd *exec.Cmd, err error) {
 	if params.WithGobinPath {
 		cmd.Env = append(cmd.Env, "PATH="+gobinPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
 	}
+	binDirPath := filepath.Join(V(minlib.GetGoroot()), "bin")
+	cmd.Env = append(cmd.Env, "PATH="+binDirPath+string(filepath.ListSeparator)+os.Getenv("PATH"))
 	return
 }
 

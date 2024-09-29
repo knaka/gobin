@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 if "%~1" == "update-me" (
-  curl.exe --fail --location --output %TEMP%\task_cmd-%~nx0 https://raw.githubusercontent.com/knaka/src/main/task.cmd || exit /b %ERRORLEVEL%
+  curl.exe --fail --location --output %TEMP%\task_cmd-%~nx0 https://raw.githubusercontent.com/knaka/src/main/task.cmd || exit /b !ERRORLEVEL!
   move /y %TEMP%\task_cmd-%~nx0 %~f0
   exit /b 0
 )
@@ -10,6 +10,7 @@ if "%~1" == "update-me" (
 @REM Index of /files/busybox https://frippery.org/files/busybox/?C=M;O=D
 set ver=FRP-5398-g89ae34445
 if "%PROCESSOR_ARCHITECTURE%" == "x86" (
+  echo "WARNING: Your environment is 32-bit. Not all features are supported." >&2
   set arch=32
 ) else if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
   set arch=64u
@@ -25,7 +26,7 @@ if not exist !bin_dir_path! (
 )
 set cmd_path=!bin_dir_path!\!cmd_name!
 if not exist !cmd_path! (
-  curl.exe --fail --location --output "!cmd_path!" https://frippery.org/files/busybox/!cmd_name! || exit /b %ERRORLEVEL%
+  curl.exe --fail --location --output "!cmd_path!" https://frippery.org/files/busybox/!cmd_name! || exit /b !ERRORLEVEL!
 )
 
 set "ARG0=%~f0"
@@ -38,5 +39,5 @@ if exist !env_file_path! (
   call !env_file_path!
 )
 set BB_GLOBBING=0
-!cmd_path! sh !sh_dir_path!\!script_name!.sh %* || exit /b %ERRORLEVEL%
+!cmd_path! sh !sh_dir_path!\!script_name!.sh %* || exit /b !ERRORLEVEL!
 endlocal

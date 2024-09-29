@@ -78,9 +78,8 @@ outer:
 	}
 
 	// If called as a symlink to the locally installed program, run the program of the appropriate version.
-
-	cmdBase := filepath.Base(os.Args[0])
-	if !(cmdBase == minlib.GobinCmdBase+minlib.ExeExt() || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@"+minlib.ExeExt())) {
+	cmdBase := minlib.RemoveExeExt(filepath.Base(os.Args[0]))
+	if !(cmdBase == minlib.GobinCmdBase || strings.HasPrefix(cmdBase, minlib.GobinCmdBase+"@")) {
 		if filepath.Base(filepath.Dir(cmdPath)) == minlib.GobinDirBase ||
 			V(fsutils.IsSubDir(filepath.Dir(cmdPath), globalGoBinPath)) {
 			opts := []gobin.Option{}

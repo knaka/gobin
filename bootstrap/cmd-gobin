@@ -230,18 +230,26 @@ func PkgVerLockMap(dirPath string) (lockList PkgVerLockMapT, err error) {
 func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, log *stdlog.Logger, _ *stdlog.Logger) (cmdPkgVerPath string, err error) {
 	pkgBase := path.Base(pkgPath)
 	pkgBaseVer := pkgBase + "@" + ver
-	cmdPath := filepath.Join(gobinPath, pkgBase+ExeExt())
+	cmdPath := filepath.Join(gobinPath, pkgBase+exeExt())
 	if tags != "" {
 		hash := sha1.New()
 		hash.Write([]byte(tags))
 		sevenDigits := fmt.Sprintf("%x", hash.Sum(nil))[:7]
 		pkgBaseVer += "-" + sevenDigits
 	}
-	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer+ExeExt())
+	cmdPkgVerPath = filepath.Join(gobinPath, pkgBaseVer+exeExt())
 	if _, err_ := os.Stat(cmdPkgVerPath); err_ != nil {
 		log.Printf("Installing %s@%s\n", pkgPath, ver)
-		cmd := exec.Command(getGoCmd(), "install", fmt.Sprintf("%s@%s", pkgPath, ver))
+		args := []string{"install", fmt.Sprintf("%s@%s", pkgPath, ver)}
+		if tags != "" {
+			log.Printf("Installing with tags %s\n", tags)
+			args = append(args, "-tags", tags)
+		}
+		s := getGoCmd()
+		log.Println("Running", s, args)
+		cmd := exec.Command(s, args...)
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GOBIN=%s", gobinPath))
+		//cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc")
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		_ = os.Remove(cmdPath)
@@ -255,16 +263,17 @@ func EnsureInstalled(gobinPath string, pkgPath string, ver string, tags string, 
 			return
 		}
 		if pkgBase == GobinCmdBase {
-			v0(os.Symlink(pkgBaseVer+ExeExt(), cmdPath))
+			v0(os.Symlink(pkgBaseVer+exeExt(), cmdPath))
 		} else {
-			v0(os.Symlink(GobinCmdBase+ExeExt(), cmdPath))
+			v0(os.Symlink(GobinCmdBase+exeExt(), cmdPath))
 		}
 	}
 	return
 }
 
-func getGoroot() (gobinPath string, err error) {
-	ver := "1.22.7"
+func GetGoroot() (gobinPath string, err error) {
+	// 1.22.7 seems not to work on Windows?
+	ver := "1.23.1"
 	if goPath, err := exec.LookPath("go"); err == nil {
 		return goPath, nil
 	}
@@ -280,7 +289,7 @@ func getGoroot() (gobinPath string, err error) {
 	homeDir := v(os.UserHomeDir())
 	sdkDirPath := filepath.Join(homeDir, "sdk")
 	goRoot := filepath.Join(sdkDirPath, "go"+ver)
-	goCmdPath := filepath.Join(goRoot, "bin", "go"+ExeExt())
+	goCmdPath := filepath.Join(goRoot, "bin", "go"+exeExt())
 	if _, err := os.Stat(goCmdPath); err == nil {
 		return goRoot, nil
 	}
@@ -312,7 +321,9 @@ func getGoroot() (gobinPath string, err error) {
 }
 
 func getGoCmd() string {
-	cmdPath := filepath.Join(v(getGoroot()), "bin", "go"+ExeExt())
+	binDirPath := filepath.Join(v(GetGoroot()), "bin")
+	//v0(os.Setenv("PATH", fmt.Sprintf("%s%c%s", binDirPath, filepath.ListSeparator, os.Getenv("PATH"))))
+	cmdPath := filepath.Join(binDirPath, "go"+exeExt())
 	if verbose {
 		log.Printf("The path to the go command is %s\n", cmdPath)
 	}
@@ -400,13 +411,27 @@ outer:
 	stdlog.Fatalf("Error 560d8bf: %+v", err)
 }
 
-var ExeExt = sync.OnceValue(func() (exeExt string) {
+var exeExt = sync.OnceValue(func() (exeExt string) {
 	switch runtime.GOOS {
 	case "windows":
 		exeExt = ".exe"
 	}
 	return
 })
+
+func RemoveExeExt(path string) string {
+	//goland:noinspection GoBoolExpressions
+	if runtime.GOOS != "windows" {
+		return path
+	}
+	pathLower := strings.ToLower(path)
+	for _, ext := range []string{".exe", ".bat", ".cmd", ".com"} {
+		if strings.HasSuffix(pathLower, ext) {
+			return path[:len(path)-len(ext)]
+		}
+	}
+	return path
+}
 
 func main() {
 	bootstrapMain()
