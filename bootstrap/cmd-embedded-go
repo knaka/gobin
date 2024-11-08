@@ -1,0 +1,104 @@
+#!/bin/sh
+set -o nounset -o errexit
+
+temp_dir=$(mktemp -d)
+
+cleanup() {
+  rm -rf "$temp_dir"
+}
+
+trap cleanup EXIT
+
+if test "${1+SET}" = SET && test "$1" = "update-me"
+then
+  # shellcheck disable=SC2064
+  curl --fail --location --output "$temp_dir"/2e1b35b https://raw.githubusercontent.com/knaka/src/main/go/go-embedded
+  cat "$temp_dir"/2e1b35b > "$0"
+  exit 0
+fi
+
+name=$(realpath "$0" | tr / _)
+file_path="$temp_dir/main.go"
+cat <<'EMBED_FAA58B3' > "$file_path"
+package main
+
+import (
+  "os"
+)
+
+func main() {
+  println("Hello, World!3")
+  for i, arg := range os.Args {
+    println(i, arg)
+  }
+}
+EMBED_FAA58B3
+
+version_ge() {
+  test "$(printf '%s\n' "$@" | sort -Vr | head -n 1)" = "$1"
+}
+
+# gobin returns the path to the Go bin directory.
+goroot_path() (
+  # All releases - The Go Programming Language https://go.dev/dl/
+  required_min_ver=1.23.0
+
+  set --
+  test "${GOROOT+set}" = set && set -- "$@" "$GOROOT"
+  which go > /dev/null 2>&1 && set -- "$@" "$(go env GOROOT)"
+  set -- "$@" /usr/local/go
+  IFS="$(printf '\n\r')"
+  # shellcheck disable=SC2046
+  set -- "$@" $(find /usr/local/Cellar/go/* -maxdepth 0 -type d 2>/dev/null | sort -Vr)
+  # shellcheck disable=SC2046
+  set -- "$@" $(find "$HOME"/sdk/go* -maxdepth 0 -type d 2>/dev/null | sort -Vr)
+  unset IFS
+  for dir_path in "$@"
+  do
+    if type "$dir_path"/bin/go > /dev/null 2>&1 && version_ge "$("$dir_path"/bin/go env GOVERSION)" "$required_min_ver"
+    then
+      echo "$dir_path"
+      return
+    fi
+  done
+
+  sdk_dir_path="$HOME"/sdk
+  goroot="$sdk_dir_path"/${required_min_ver}
+  case "$(uname -s)" in
+    Linux) goos=linux;;
+    Darwin) goos=darwin;;
+    *)
+      echo "Unsupported OS: $(uname -s)" >&2
+      exit 1;;
+  esac
+  case "$(uname -m)" in
+    arm64) goarch=arm64;;
+    x86_64) goarch=amd64;;
+    *)
+      echo "Unsupported architecture: $(uname -m)" >&2
+      exit 1;;
+  esac
+  mkdir -p "$sdk_dir_path"
+  curl --location -o - "https://go.dev/dl/$required_min_ver.$goos-$goarch.tar.gz" | (cd "$sdk_dir_path" || exit 1; tar -xzf -)
+  mv "$sdk_dir_path"/go "$goroot"
+  echo "$goroot"
+)
+
+gopath="${GOPATH:-$HOME/go}"
+mkdir -p "$gopath"/bin
+cmd_path="$gopath"/bin/embedded-"$name"
+if test -z "$(find "$cmd_path" -newer "$0" 2>/dev/null)"
+then
+  (
+    echo Compiling "$0" to "$cmd_path" >&2
+    GOROOT="$(goroot_path)"
+    export GOROOT
+    PATH="$GOROOT"/bin:$PATH
+    export PATH 
+    go build -o "$cmd_path" "$file_path"
+  )
+fi
+
+cleanup
+
+exec "$cmd_path" "$@"

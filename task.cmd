@@ -7,8 +7,9 @@ if "%~1" == "update-me" (
 )
 
 @REM BusyBox for Windows https://frippery.org/busybox/index.html
+@REM Release Notes https://frippery.org/busybox/release-notes/index.html
 @REM Index of /files/busybox https://frippery.org/files/busybox/?C=M;O=D
-set ver=FRP-5398-g89ae34445
+set ver=FRP-5467-g9376eebd8
 if "%PROCESSOR_ARCHITECTURE%" == "x86" (
   echo "WARNING: Your environment is 32-bit. Not all features are supported." >&2
   set arch=32
