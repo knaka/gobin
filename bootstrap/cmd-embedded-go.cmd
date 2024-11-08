@@ -130,10 +130,11 @@ for /F "usebackq tokens=*" %%v in (`%1 env GOVERSION`) do (
   set major=!version:~2,1!
   set minor=!version:~4,2!
   if !major! geq !required_min_major_ver! (
-  if !minor! geq !required_min_minor_ver! (
-    for /F "useback tokens=*" %%p in (`%1 env GOROOT`) do (
-      call :to_short_path "%%p"
-      set goroot_dir_spath=!short_path!
+    if !minor! geq !required_min_minor_ver! (
+      for /F "useback tokens=*" %%p in (`%1 env GOROOT`) do (
+        call :to_short_path "%%p"
+        set goroot_dir_spath=!short_path!
+      )
     )
   )
 )
