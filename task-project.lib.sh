@@ -93,3 +93,7 @@ task_bootstrap__gen() { # Generate bootstrap scripts.
 task_gen() { # Generate files.
   task_bootstrap__gen
 }
+
+task_generate() { # Generate files.
+  task_gen
+}
